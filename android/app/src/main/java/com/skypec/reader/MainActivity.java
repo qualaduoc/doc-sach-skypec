@@ -70,9 +70,9 @@ public class MainActivity extends AppCompatActivity {
             serviceIntent.putExtra("token", token);
             
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                startForegroundService(serviceIntent);
+                MainActivity.this.startForegroundService(serviceIntent);
             } else {
-                startService(serviceIntent);
+                MainActivity.this.startService(serviceIntent);
             }
         }
 
@@ -80,7 +80,7 @@ public class MainActivity extends AppCompatActivity {
         @JavascriptInterface
         public void stopForegroundService() {
             Intent serviceIntent = new Intent(MainActivity.this, HeartbeatService.class);
-            stopService(serviceIntent);
+            MainActivity.this.stopService(serviceIntent);
         }
 
         // Thực hiện cuộc gọi HTTP trực tiếp từ mã Java Native để Bypass CORS (Bỏ qua chặn tên miền chéo)

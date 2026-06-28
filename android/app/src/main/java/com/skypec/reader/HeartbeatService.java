@@ -125,7 +125,7 @@ public class HeartbeatService extends Service {
                     "Dịch vụ chạy ngầm Skypec Reader",
                     NotificationManager.IMPORTANCE_LOW
             );
-            NotificationManager manager = getSystemService(NotificationManager.class);
+            NotificationManager manager = (NotificationManager) getSystemService(android.content.Context.NOTIFICATION_SERVICE);
             if (manager != null) {
                 manager.createNotificationChannel(serviceChannel);
             }

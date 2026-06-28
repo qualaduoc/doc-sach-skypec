@@ -21,9 +21,6 @@ jobs:
           distribution: 'zulu'
           java-version: '17'
 
-      - name: Thiết lập môi trường Android SDK
-        uses: android-actions/setup-android@v2
-
       - name: Sao chép tài nguyên Web vào Assets của Android
         run: |
           mkdir -p android/app/src/main/assets
