@@ -65,6 +65,9 @@ function setupEventListeners() {
   
   // Nút dừng duy trì ngầm
   document.getElementById('btn-stop-reading').addEventListener('click', stopReading);
+
+  // Thay đổi số phút mục tiêu thủ công
+  document.getElementById('txt-target-time').addEventListener('input', updateProgressUI);
 }
 
 // Hàm gửi request hỗ trợ Bypass CORS (nếu chạy trong ứng dụng Android WebView)
@@ -299,7 +302,22 @@ async function openClassDetails(classInfo) {
   showScreen('reader-screen');
   
   try {
-    // Gọi API FrUserJoinClassNew để lấy classUserId thực tế của học viên trong lớp này
+    // 1. Gọi API lấy thông tin chi tiết lớp học để biết số phút yêu cầu tối thiểu (minTimeRequired)
+    let minTimeRequired = 430; // Mặc định là 430
+    try {
+      const classDetail = await requestApi(`/LmsClass/${classInfo.id}`, {
+        headers: { 'Authorization': `Bearer ${state.token}` }
+      });
+      if (classDetail.status && classDetail.data && classDetail.data.minTimeRequired) {
+        minTimeRequired = classDetail.data.minTimeRequired;
+      }
+    } catch (e) {
+      console.log('Không lấy được minTimeRequired, sử dụng mặc định 430:', e);
+    }
+    
+    document.getElementById('txt-target-time').value = minTimeRequired;
+
+    // 2. Gọi API FrUserJoinClassNew để lấy classUserId thực tế của học viên trong lớp này
     const joinData = await requestApi(`${API_PATHS.joinClass}/${classInfo.id}`, {
       headers: { 'Authorization': `Bearer ${state.token}` }
     });
@@ -332,13 +350,13 @@ async function openClassDetails(classInfo) {
 // Cập nhật giao diện tiến độ đọc sách
 function updateProgressUI() {
   const current = state.selectedClass.currentLearnTime || 0;
-  const target = 430; // Yêu cầu tối thiểu là 430 phút
+  const target = parseInt(document.getElementById('txt-target-time').value) || 430;
   const percent = Math.min(100, (current / target) * 100);
   
   document.getElementById('progress-text').textContent = `${current.toFixed(1)} / ${target} phút (${percent.toFixed(1)}%)`;
   document.getElementById('progress-bar-fill').style.width = `${percent}%`;
   
-  // Nếu đã đạt 430 phút thì đổi màu tiến trình sang màu xanh lá
+  // Nếu đã đạt mục tiêu thì đổi màu tiến trình sang màu xanh lá
   if (current >= target) {
     document.getElementById('progress-bar-fill').style.background = 'linear-gradient(135deg, #38ef7d 0%, #11998e 100%)';
     document.getElementById('progress-bar-fill').style.boxShadow = '0 0 8px rgba(56, 239, 125, 0.5)';
@@ -454,10 +472,11 @@ async function sendHeartbeat() {
         state.selectedClass.currentLearnTime += 1.0;
         updateProgressUI();
         
-        // Kiểm tra tự động dừng khi đạt 430 phút
+        // Kiểm tra tự động dừng khi đạt mục tiêu
+        const target = parseInt(document.getElementById('txt-target-time').value) || 430;
         const isAutoStop = document.getElementById('chk-auto-stop').checked;
-        if (isAutoStop && state.selectedClass.currentLearnTime >= 430) {
-          addLog('Đạt tiến độ yêu cầu 430 phút! Tự động dừng...', 'success');
+        if (isAutoStop && state.selectedClass.currentLearnTime >= target) {
+          addLog(`Đạt tiến độ yêu cầu ${target} phút! Tự động dừng...`, 'success');
           // Phát chuông báo hoàn thành
           playAlertSound();
           stopReading();

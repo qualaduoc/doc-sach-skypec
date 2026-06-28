@@ -552,6 +552,34 @@ h2 {
   transition: width 0.5s ease;
 }
 
+.target-input-group {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 14px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.target-input-group input {
+  width: 80px;
+  padding: 6px 10px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  color: #fff;
+  font-size: 13px;
+  text-align: center;
+  outline: none;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+.target-input-group input:focus {
+  border-color: var(--primary-color);
+  background: rgba(255, 255, 255, 0.08);
+}
+
 /* Active Reading State */
 .active-reading-section {
   width: 100%;
