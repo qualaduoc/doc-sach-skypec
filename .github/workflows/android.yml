@@ -24,8 +24,16 @@ jobs:
       - name: Thiết lập môi trường Android SDK
         uses: android-actions/setup-android@v2
 
+      - name: Tạo Gradle Wrapper
+        run: gradle wrapper --gradle-version 7.5.1
+        working-directory: android
+
+      - name: Cấp quyền chạy cho Gradlew
+        run: chmod +x gradlew
+        working-directory: android
+
       - name: Biên dịch ứng dụng Android (Tạo file APK Debug)
-        run: gradle assembleDebug
+        run: ./gradlew assembleDebug
         working-directory: android
 
       - name: Tải file APK lên thành Artifact để tải về
