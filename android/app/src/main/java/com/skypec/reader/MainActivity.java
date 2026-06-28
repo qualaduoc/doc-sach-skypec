@@ -142,40 +142,72 @@ public class MainActivity extends AppCompatActivity {
 
                         // Đọc phản hồi
                         int responseCode = conn.getResponseCode();
-                        BufferedReader br;
+                        BufferedReader br = null;
                         if (responseCode >= 200 && responseCode < 300) {
                             br = new BufferedReader(new InputStreamReader(conn.getInputStream(), "utf-8"));
                         } else {
-                            br = new BufferedReader(new InputStreamReader(conn.getErrorStream(), "utf-8"));
+                            InputStream errorStream = conn.getErrorStream();
+                            if (errorStream != null) {
+                                br = new BufferedReader(new InputStreamReader(errorStream, "utf-8"));
+                            }
                         }
 
-                        StringBuilder response = new StringBuilder();
-                        String responseLine;
-                        while ((responseLine = br.readLine()) != null) {
-                            response.append(responseLine.trim());
+                        String responseStr = "";
+                        if (br != null) {
+                            StringBuilder response = new StringBuilder();
+                            String responseLine;
+                            while ((responseLine = br.readLine()) != null) {
+                                response.append(responseLine.trim());
+                            }
+                            responseStr = response.toString();
                         }
 
-                        final String responseStr = response.toString();
+                        // Nếu thành công nhưng phản hồi rỗng, trả về {} để tránh lỗi JSON
+                        if (responseCode >= 200 && responseCode < 300 && responseStr.isEmpty()) {
+                            responseStr = "{}";
+                        }
+
+                        // Nếu thất bại (non-2xx)
+                        if (responseCode < 200 || responseCode >= 300) {
+                            if (responseStr.isEmpty()) {
+                                responseStr = "{\"error\":\"Lỗi HTTP " + responseCode + "\",\"statusCode\":" + responseCode + "}";
+                            } else {
+                                // Nếu có error stream nhưng không phải định dạng JSON, bọc nó lại
+                                if (!responseStr.startsWith("{") && !responseStr.startsWith("[")) {
+                                    JSONObject errObj = new JSONObject();
+                                    errObj.put("error", responseStr);
+                                    errObj.put("statusCode", responseCode);
+                                    responseStr = errObj.toString();
+                                }
+                            }
+                        }
+
+                        final String finalResponse = responseStr;
 
                         // Gửi kết quả ngược lại cho JavaScript qua hàm callback
                         webView.post(new Runnable() {
                             @Override
                             public void run() {
                                 // Escape ký tự đặc biệt để truyền vào chuỗi JS an toàn
-                                String escaped = responseStr.replace("'", "\\'").replace("\n", "\\n");
+                                String escaped = finalResponse.replace("\\", "\\\\")
+                                                             .replace("'", "\\'")
+                                                             .replace("\n", "\\n")
+                                                             .replace("\r", "\\r");
                                 webView.evaluateJavascript("window." + callback + "('" + escaped + "')", null);
                             }
                         });
 
                     } catch (final Exception e) {
                         e.printStackTrace();
-                        // Trả về lỗi
+                        // Trả về lỗi kết nối
                         try {
                             final String callback = new JSONObject(optionsJson).getString("callback");
+                            final JSONObject errObj = new JSONObject();
+                            errObj.put("error", e.getMessage() != null ? e.getMessage() : e.toString());
                             webView.post(new Runnable() {
                                 @Override
                                 public void run() {
-                                    webView.evaluateJavascript("window." + callback + "('{\"error\":\"" + e.getMessage() + "\"}')", null);
+                                    webView.evaluateJavascript("window." + callback + "('" + errObj.toString().replace("'", "\\'") + "')", null);
                                 }
                             });
                         } catch (Exception ex) {

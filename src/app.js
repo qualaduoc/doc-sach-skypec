@@ -306,25 +306,40 @@ async function openClassDetails(classInfo) {
   
   showScreen('reader-screen');
   
+  // Ghi nhận nhật ký để gỡ lỗi trực quan trên giao diện
+  addLog('Đang tải chi tiết lớp học...', 'info');
+  addLog('Dữ liệu nhận được: ' + JSON.stringify(classInfo), 'info');
+  
   try {
-    const classId = classInfo.id || classInfo.classId;
+    // Thử tất cả các khoá ID có thể có từ API danh sách của Skypec
+    const classId = classInfo.id || classInfo.classId || classInfo.lmsClassId || classInfo.classUserId;
+    addLog('Sử dụng Class ID: ' + classId, 'info');
+    
+    if (!classId) {
+      throw new Error('Không tìm thấy ID lớp học trong dữ liệu hệ thống.');
+    }
     
     // 1. Gọi API lấy thông tin chi tiết lớp học để biết số phút yêu cầu tối thiểu (minTimeRequired)
     let minTimeRequired = 430; // Mặc định là 430
+    addLog('Đang tải cấu hình thời gian yêu cầu...', 'info');
     try {
       const classDetail = await requestApi(`/skypec2.lms.api/api/v1/LmsClass/${classId}`, {
         headers: { 'Authorization': `Bearer ${state.token}` }
       });
       if (classDetail.status && classDetail.data && classDetail.data.minTimeRequired) {
         minTimeRequired = classDetail.data.minTimeRequired;
+        addLog('Thời gian yêu cầu tối thiểu: ' + minTimeRequired + ' phút', 'success');
+      } else {
+        addLog('Không tìm thấy minTimeRequired trong phản hồi, dùng mặc định 430 phút', 'info');
       }
     } catch (e) {
-      console.log('Không lấy được minTimeRequired, sử dụng mặc định 430:', e);
+      addLog('Không lấy được minTimeRequired (dùng mặc định 430): ' + e.message, 'info');
     }
     
     document.getElementById('txt-target-time').value = minTimeRequired;
 
     // 2. Gọi API FrUserJoinClassNew để lấy classUserId thực tế của học viên trong lớp này
+    addLog('Đang tải tiến độ học tập thực tế...', 'info');
     const joinData = await requestApi(`${API_PATHS.joinClass}/${classId}`, {
       headers: { 'Authorization': `Bearer ${state.token}` }
     });
@@ -332,6 +347,7 @@ async function openClassDetails(classInfo) {
     if (joinData.status && joinData.data) {
       // Lưu lại thông tin chi tiết bao gồm classUserId và danh sách học tập của lớp
       state.selectedClass.classUserId = joinData.data.id;
+      addLog('Lấy mã học viên thành công (classUserId): ' + joinData.data.id, 'success');
       
       // Lấy ra tiến độ của sách (thường có classContentId)
       const learningHistories = joinData.data.lmsClassUserLearning || [];
@@ -347,11 +363,15 @@ async function openClassDetails(classInfo) {
         state.selectedClass.currentLearnTime = joinData.data.totalTime || joinData.data.learnTime || 0;
       }
       
+      addLog('Thời gian đã học: ' + state.selectedClass.currentLearnTime.toFixed(1) + ' phút', 'success');
+      addLog('Trạng thái hoàn thành: ' + (state.selectedClass.isFinish ? 'Đã hoàn thành' : 'Chưa hoàn thành'), 'info');
+      
       updateProgressUI();
     } else {
-      alert('Không thể lấy chi tiết tiến độ lớp học từ hệ thống Skypec.');
+      throw new Error('Không thể lấy chi tiết tiến độ lớp học từ hệ thống Skypec.');
     }
   } catch (err) {
+    addLog('Lỗi tải chi tiết lớp học: ' + err.message, 'error');
     console.error(err);
     alert('Lỗi kết nối khi tải chi tiết lớp học: ' + (err.message || err));
   }
