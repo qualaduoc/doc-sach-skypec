@@ -26,7 +26,7 @@ android {
     // Tự động copy thư mục src vào thư mục assets của Android trước khi build
     applicationVariants.all { variant ->
         variant.mergeAssetsProvider.configure {
-            dependsOn copyWebAssets
+            dependsOn "copyWebAssets"
         }
     }
 }
