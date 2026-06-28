@@ -47,7 +47,7 @@ public class HeartbeatService extends Service {
         Notification notification = new NotificationCompat.Builder(this, CHANNEL_ID)
                 .setContentTitle("Đang tự động đọc sách Skypec")
                 .setContentText("Lớp học: " + (classTitle != null ? classTitle : "Đang duy trì..."))
-                .setSmallIcon(android.R.drawable.ic_menu_book)
+                .setSmallIcon(android.R.drawable.ic_dialog_info)
                 .setContentIntent(pendingIntent)
                 .build();
 

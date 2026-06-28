@@ -194,7 +194,7 @@ public class MainActivity extends AppCompatActivity {
             );
             
             androidx.core.app.NotificationCompat.Builder builder = new androidx.core.app.NotificationCompat.Builder(MainActivity.this, channelId)
-                    .setSmallIcon(android.R.drawable.ic_menu_book)
+                    .setSmallIcon(android.R.drawable.ic_dialog_info)
                     .setContentTitle(title)
                     .setContentText(message)
                     .setAutoCancel(true)
