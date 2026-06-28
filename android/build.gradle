@@ -8,12 +8,7 @@ buildscript {
     }
 }
 
-allprojects {
-    repositories {
-        google()
-        mavenCentral()
-    }
-}
+// Các cấu hình dự án được quản lý tập trung tại settings.gradle
 
 task clean(type: Delete) {
     delete rootProject.buildDir
