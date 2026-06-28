@@ -22,18 +22,6 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
-    
-    // Tự động copy thư mục src vào thư mục assets của Android trước khi build
-    applicationVariants.all { variant ->
-        variant.mergeAssetsProvider.configure {
-            dependsOn "copyWebAssets"
-        }
-    }
-}
-
-task copyWebAssets(type: Copy) {
-    from '../../src'
-    into 'src/main/assets'
 }
 
 dependencies {
