@@ -307,10 +307,12 @@ async function openClassDetails(classInfo) {
   showScreen('reader-screen');
   
   try {
+    const classId = classInfo.id || classInfo.classId;
+    
     // 1. Gọi API lấy thông tin chi tiết lớp học để biết số phút yêu cầu tối thiểu (minTimeRequired)
     let minTimeRequired = 430; // Mặc định là 430
     try {
-      const classDetail = await requestApi(`/LmsClass/${classInfo.id}`, {
+      const classDetail = await requestApi(`/skypec2.lms.api/api/v1/LmsClass/${classId}`, {
         headers: { 'Authorization': `Bearer ${state.token}` }
       });
       if (classDetail.status && classDetail.data && classDetail.data.minTimeRequired) {
@@ -323,7 +325,7 @@ async function openClassDetails(classInfo) {
     document.getElementById('txt-target-time').value = minTimeRequired;
 
     // 2. Gọi API FrUserJoinClassNew để lấy classUserId thực tế của học viên trong lớp này
-    const joinData = await requestApi(`${API_PATHS.joinClass}/${classInfo.id}`, {
+    const joinData = await requestApi(`${API_PATHS.joinClass}/${classId}`, {
       headers: { 'Authorization': `Bearer ${state.token}` }
     });
     
@@ -333,22 +335,25 @@ async function openClassDetails(classInfo) {
       
       // Lấy ra tiến độ của sách (thường có classContentId)
       const learningHistories = joinData.data.lmsClassUserLearning || [];
+      state.selectedClass.isFinish = joinData.data.isFinish === 1 || joinData.data.isFinish === true;
+      
       if (learningHistories.length > 0) {
         const bookProgress = learningHistories[0]; // Cuốn sách đầu tiên trong lớp
-        state.selectedClass.currentLearnTime = bookProgress.learnTime || 0;
-        state.selectedClass.isFinish = bookProgress.isFinish;
+        state.selectedClass.currentLearnTime = bookProgress.learnTime || joinData.data.totalTime || 0;
+        if (bookProgress.isFinish !== undefined && bookProgress.isFinish !== null) {
+          state.selectedClass.isFinish = bookProgress.isFinish;
+        }
       } else {
-        state.selectedClass.currentLearnTime = 0;
-        state.selectedClass.isFinish = false;
+        state.selectedClass.currentLearnTime = joinData.data.totalTime || joinData.data.learnTime || 0;
       }
       
       updateProgressUI();
     } else {
-      alert('Không thể lấy chi tiết lớp học từ hệ thống.');
+      alert('Không thể lấy chi tiết tiến độ lớp học từ hệ thống Skypec.');
     }
   } catch (err) {
     console.error(err);
-    alert('Lỗi kết nối khi tải chi tiết lớp học.');
+    alert('Lỗi kết nối khi tải chi tiết lớp học: ' + (err.message || err));
   }
 }
 

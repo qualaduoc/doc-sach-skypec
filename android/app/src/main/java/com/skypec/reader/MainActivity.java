@@ -51,6 +51,25 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
+        // Hỗ trợ hiển thị hộp thoại cảnh báo alert() từ JavaScript
+        webView.setWebChromeClient(new android.webkit.WebChromeClient() {
+            @Override
+            public boolean onJsAlert(WebView view, String url, String message, final android.webkit.JsResult result) {
+                new androidx.appcompat.app.AlertDialog.Builder(MainActivity.this)
+                        .setTitle("Thông báo")
+                        .setMessage(message)
+                        .setPositiveButton(android.R.string.ok, new android.content.DialogInterface.OnClickListener() {
+                            public void onClick(android.content.DialogInterface dialog, int which) {
+                                result.confirm();
+                            }
+                        })
+                        .setCancelable(false)
+                        .create()
+                        .show();
+                return true;
+            }
+        });
+
         // Đăng ký cầu nối JavascriptInterface tên là "Android"
         webView.addJavascriptInterface(new WebAppInterface(), "Android");
 
