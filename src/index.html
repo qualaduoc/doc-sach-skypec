@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Skypec Auto Reader</title>
+  <link rel="stylesheet" href="style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Màn hình Đăng nhập -->
+    <div id="login-screen" class="screen active">
+      <div class="glass-card login-card">
+        <div class="brand-logo">
+          <i class="fa-solid fa-book-open-reader"></i>
+        </div>
+        <h2>Skypec Auto Reader</h2>
+        <p class="subtitle">Ứng dụng tự động duy trì tiến độ đọc sách</p>
+        
+        <form id="login-form">
+          <div class="input-group">
+            <i class="fa-solid fa-user"></i>
+            <input type="text" id="username" placeholder="Tên đăng nhập (Mã nhân viên)" required autocomplete="username">
+          </div>
+          <div class="input-group">
+            <i class="fa-solid fa-lock"></i>
+            <input type="password" id="password" placeholder="Mật khẩu" required autocomplete="current-password">
+          </div>
+          <button type="submit" class="btn-glow">
+            <span>Đăng Nhập</span>
+            <i class="fa-solid fa-arrow-right-to-bracket"></i>
+          </button>
+        </form>
+        <div id="login-error" class="error-msg hidden"></div>
+      </div>
+    </div>
+
+    <!-- Màn hình chính (Danh sách lớp học) -->
+    <div id="main-screen" class="screen">
+      <header class="app-header">
+        <div class="user-info">
+          <div class="avatar">
+            <i class="fa-solid fa-user-tie"></i>
+          </div>
+          <div>
+            <h3 id="user-display-name">Học viên</h3>
+            <p id="user-dept" class="subtitle">Trung tâm khai thác</p>
+          </div>
+        </div>
+        <button id="btn-logout" class="btn-icon" title="Đăng xuất">
+          <i class="fa-solid fa-right-from-bracket"></i>
+        </button>
+      </header>
+
+      <div class="filter-bar">
+        <div class="select-wrapper">
+          <i class="fa-solid fa-calendar-days"></i>
+          <select id="year-select">
+            <option value="2026">Năm 2026</option>
+            <option value="2025">Năm 2025</option>
+            <option value="2024">Năm 2024</option>
+            <option value="2023" selected>Năm 2023</option>
+            <option value="2022">Năm 2022</option>
+          </select>
+        </div>
+        <button id="btn-refresh" class="btn-circle" title="Làm mới">
+          <i class="fa-solid fa-rotate"></i>
+        </button>
+      </div>
+
+      <div class="class-list-container">
+        <div id="class-list" class="class-list">
+          <!-- Các lớp học sẽ được render động ở đây -->
+          <div class="loading-spinner">
+            <i class="fa-solid fa-circle-notch fa-spin"></i>
+            <p>Đang tải danh sách lớp học...</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Màn hình Đọc sách / Duy trì chạy ngầm -->
+    <div id="reader-screen" class="screen">
+      <header class="app-header">
+        <button id="btn-back-to-list" class="btn-icon">
+          <i class="fa-solid fa-arrow-left"></i>
+        </button>
+        <h3 class="header-title">Chi tiết tiến độ</h3>
+        <div style="width: 40px;"></div>
+      </header>
+
+      <div class="glass-card reader-card">
+        <div class="book-cover-wrapper">
+          <div id="book-cover" class="book-cover">
+            <i class="fa-solid fa-book"></i>
+          </div>
+        </div>
+
+        <h2 id="reader-class-title">Tên sách/Lớp học</h2>
+        <p id="reader-class-code" class="class-code">Mã lớp</p>
+
+        <div class="progress-section">
+          <div class="progress-labels">
+            <span>Tiến độ đọc:</span>
+            <span id="progress-text">0 / 0 phút</span>
+          </div>
+          <div class="progress-bar-container">
+            <div id="progress-bar-fill" class="progress-bar-fill" style="width: 0%"></div>
+          </div>
+        </div>
+
+        <!-- Trạng thái duy trì thời gian -->
+        <div id="active-reading-section" class="active-reading-section hidden">
+          <div class="pulse-indicator">
+            <span class="dot"></span>
+            <span class="text">Đang gửi tín hiệu duy trì thời gian...</span>
+          </div>
+
+          <div class="timer-container">
+            <div class="timer-card">
+              <span class="timer-label">ĐÃ DUY TRÌ</span>
+              <span id="session-timer" class="timer-value">00:00:00</span>
+            </div>
+            <div class="timer-card">
+              <span class="timer-label">ƯỚC TÍNH TĂNG</span>
+              <span id="estimated-increase" class="timer-value">+0.0 phút</span>
+            </div>
+          </div>
+
+          <div class="console-log-card">
+            <div class="console-header">
+              <span>Nhật ký hoạt động</span>
+              <i class="fa-solid fa-terminal"></i>
+            </div>
+            <div id="console-logs" class="console-logs">
+              <!-- Logs will be appended here -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Các nút điều khiển -->
+        <div class="control-actions">
+          <button id="btn-start-reading" class="btn-glow btn-large">
+            <i class="fa-solid fa-play"></i>
+            <span>Bắt đầu duy trì ngầm</span>
+          </button>
+          <button id="btn-stop-reading" class="btn-danger btn-large hidden">
+            <i class="fa-solid fa-stop"></i>
+            <span>Dừng duy trì ngầm</span>
+          </button>
+        </div>
+
+        <div class="settings-group">
+          <label class="toggle-switch">
+            <input type="checkbox" id="chk-auto-stop" checked>
+            <span class="slider"></span>
+            <span class="label-text">Tự động dừng khi hoàn thành (430 phút)</span>
+          </label>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Audio file câm để kích hoạt chế độ chạy ngầm trên trình duyệt nếu không dùng app native -->
+  <audio id="silent-audio" loop src="data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA"></audio>
+
+  <script src="app.js"></script>
+</body>
+</html>

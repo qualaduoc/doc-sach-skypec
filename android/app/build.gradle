@@ -1,0 +1,43 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.skypec.reader'
+    compileSdk 33
+
+    defaultConfig {
+        applicationId "com.skypec.reader"
+        minSdk 21
+        targetSdk 33
+        versionCode 1
+        versionName "1.0"
+
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+    
+    // Tự động copy thư mục src vào thư mục assets của Android trước khi build
+    applicationVariants.all { variant ->
+        variant.mergeAssetsProvider.configure {
+            dependsOn copyWebAssets
+        }
+    }
+}
+
+task copyWebAssets(type: Copy) {
+    from '../../src'
+    into 'src/main/assets'
+}
+
+dependencies {
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+    implementation 'com.google.android.material:material:1.9.0'
+    implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
+}

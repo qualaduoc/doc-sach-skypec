@@ -1,0 +1,32 @@
+# Android specific
+.gradle/
+local.properties
+.idea/
+build/
+app/build/
+*.apk
+*.aar
+*.jks
+*.keystore
+
+# Node/JS specific
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# OS specific
+Thumbs.db
+.DS_Store
+
+# IDE specific
+*.iml
+.project
+.classpath
+.settings/
+.vscode/
+
+# Temp/Scratch files
+scratch/
+temp/
+tmp/
+*.tmp
