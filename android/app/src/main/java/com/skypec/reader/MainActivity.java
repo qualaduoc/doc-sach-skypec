@@ -165,6 +165,46 @@ public class MainActivity extends AppCompatActivity {
                 }
             }).start();
         }
+
+        // Hiển thị thông báo đẩy rung và kêu chuông khi hoàn thành mục tiêu
+        @JavascriptInterface
+        public void showCompletionNotification(String title, String message) {
+            android.app.NotificationManager notificationManager = (android.app.NotificationManager) getSystemService(android.content.Context.NOTIFICATION_SERVICE);
+            String channelId = "SkypecReaderCompletionChannel";
+            
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                android.app.NotificationChannel channel = new android.app.NotificationChannel(
+                        channelId,
+                        "Thông báo hoàn thành đọc sách",
+                        android.app.NotificationManager.IMPORTANCE_HIGH
+                );
+                channel.setDescription("Thông báo khi hoàn thành đủ số phút đọc sách");
+                channel.enableVibration(true);
+                channel.setVibrationPattern(new long[]{0, 500, 250, 500}); // Rung 2 lần
+                if (notificationManager != null) {
+                    notificationManager.createNotificationChannel(channel);
+                }
+            }
+            
+            Intent intent = new Intent(MainActivity.this, MainActivity.class);
+            PendingIntent pendingIntent = PendingIntent.getActivity(
+                    MainActivity.this, 0, intent,
+                    android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M ? PendingIntent.FLAG_IMMUTABLE : 0
+            );
+            
+            androidx.core.app.NotificationCompat.Builder builder = new androidx.core.app.NotificationCompat.Builder(MainActivity.this, channelId)
+                    .setSmallIcon(android.R.drawable.ic_menu_book)
+                    .setContentTitle(title)
+                    .setContentText(message)
+                    .setAutoCancel(true)
+                    .setDefaults(android.app.Notification.DEFAULT_ALL) // Dùng âm thanh và rung mặc định
+                    .setPriority(androidx.core.app.NotificationCompat.PRIORITY_HIGH)
+                    .setContentIntent(pendingIntent);
+                    
+            if (notificationManager != null) {
+                notificationManager.notify(2, builder.build());
+            }
+        }
     }
 
     @Override

@@ -477,8 +477,17 @@ async function sendHeartbeat() {
         const isAutoStop = document.getElementById('chk-auto-stop').checked;
         if (isAutoStop && state.selectedClass.currentLearnTime >= target) {
           addLog(`Đạt tiến độ yêu cầu ${target} phút! Tự động dừng...`, 'success');
-          // Phát chuông báo hoàn thành
+          // Phát chuông báo hoàn thành bằng âm thanh web
           playAlertSound();
+          
+          // Gửi thông báo đẩy Native Android (Rung + Âm thanh hệ thống) nếu có
+          if (window.Android && window.Android.showCompletionNotification) {
+            window.Android.showCompletionNotification(
+              "Hoàn thành mục tiêu đọc sách! 🎉",
+              `Lớp "${state.selectedClass.classTitle}" đã đạt đủ ${target} phút.`
+            );
+          }
+          
           stopReading();
         }
       }
