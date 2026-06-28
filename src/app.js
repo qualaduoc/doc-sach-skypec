@@ -172,8 +172,13 @@ async function performLogin(username, password) {
       state.user = { displayName: username, departmentName: 'Skypec' };
     }
     
-    // Hiển thị thông tin học viên lên giao diện
-    document.getElementById('user-display-name').textContent = state.user.displayName || username;
+    // Cố gắng lấy họ tên đầy đủ từ các trường khác nhau nếu displayName chỉ là mã nhân viên
+    let displayName = state.user.fullName || state.user.employeeName || state.user.hoTen || state.user.displayName || username;
+    if (displayName === username && state.user.lastName && state.user.firstName) {
+      displayName = `${state.user.lastName} ${state.user.firstName}`;
+    }
+    
+    document.getElementById('user-display-name').textContent = displayName;
     document.getElementById('user-dept').textContent = state.user.departmentName || 'Học viên Skypec';
     
     showScreen('main-screen');

@@ -352,6 +352,11 @@ h2 {
   background: rgba(255, 255, 255, 0.08);
 }
 
+.select-wrapper select option {
+  background-color: var(--bg-color);
+  color: var(--text-color);
+}
+
 /* Class List */
 .class-list-container {
   flex: 1;
