@@ -123,7 +123,11 @@ public class MainActivity extends AppCompatActivity {
                         conn.setConnectTimeout(10000);
                         conn.setReadTimeout(10000);
 
-                        // Thêm headers
+                        // Giả lập User-Agent của trình duyệt di động để tránh bị WAF chặn hoặc trả về 404
+                        conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Mobile Safari/537.36");
+                        conn.setRequestProperty("Accept", "application/json, text/plain, */*");
+
+                        // Thêm headers từ JavaScript gửi qua
                         if (headers != null) {
                             Iterator<String> keys = headers.keys();
                             while (keys.hasNext()) {
@@ -168,19 +172,33 @@ public class MainActivity extends AppCompatActivity {
                             responseStr = "{}";
                         }
 
-                        // Nếu thất bại (non-2xx)
+                        // Nếu thất bại (non-2xx) - đóng gói chi tiết lỗi để chẩn đoán
                         if (responseCode < 200 || responseCode >= 300) {
-                            if (responseStr.isEmpty()) {
-                                responseStr = "{\"error\":\"Lỗi HTTP " + responseCode + "\",\"statusCode\":" + responseCode + "}";
-                            } else {
-                                // Nếu có error stream nhưng không phải định dạng JSON, bọc nó lại
-                                if (!responseStr.startsWith("{") && !responseStr.startsWith("[")) {
-                                    JSONObject errObj = new JSONObject();
-                                    errObj.put("error", responseStr);
-                                    errObj.put("statusCode", responseCode);
-                                    responseStr = errObj.toString();
+                            JSONObject errObj = new JSONObject();
+                            errObj.put("error", "Lỗi HTTP " + responseCode);
+                            errObj.put("statusCode", responseCode);
+                            errObj.put("url", urlStr);
+                            errObj.put("method", method);
+                            
+                            // Ghi lại danh sách header gửi đi (rút gọn Token bảo mật)
+                            JSONObject reqHeaders = new JSONObject();
+                            if (headers != null) {
+                                Iterator<String> keys = headers.keys();
+                                while (keys.hasNext()) {
+                                    String key = keys.next();
+                                    String val = headers.getString(key);
+                                    if (key.equalsIgnoreCase("Authorization") && val.length() > 25) {
+                                        val = val.substring(0, 15) + "..." + val.substring(val.length() - 10);
+                                    }
+                                    reqHeaders.put(key, val);
                                 }
                             }
+                            errObj.put("requestHeaders", reqHeaders);
+                            
+                            if (!responseStr.isEmpty()) {
+                                errObj.put("serverDetail", responseStr);
+                            }
+                            responseStr = errObj.toString();
                         }
 
                         final String finalResponse = responseStr;
