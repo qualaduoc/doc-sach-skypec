@@ -307,8 +307,13 @@ async function openClassDetails(classInfo) {
   showScreen('reader-screen');
   
   // Ghi nhận nhật ký để gỡ lỗi trực quan trên giao diện
+  document.getElementById('console-logs').innerHTML = ''; // Reset logs cũ
   addLog('Đang tải chi tiết lớp học...', 'info');
   addLog('Dữ liệu nhận được: ' + JSON.stringify(classInfo), 'info');
+  
+  // Kiểm tra tính hợp lệ của Token
+  const tokenSnippet = state.token ? (state.token.substring(0, 10) + '...' + state.token.substring(state.token.length - 10)) : 'RỖNG';
+  addLog('Kiểm tra Token gửi đi: ' + tokenSnippet + ' (Độ dài: ' + (state.token ? state.token.length : 0) + ')', 'info');
   
   try {
     // Thử tất cả các khoá ID có thể có từ API danh sách của Skypec
