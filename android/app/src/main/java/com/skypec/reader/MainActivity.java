@@ -83,11 +83,12 @@ public class MainActivity extends AppCompatActivity {
 
         // Bắt đầu dịch vụ chạy ngầm Foreground Service để gửi tín hiệu nhịp tim đọc sách
         @JavascriptInterface
-        public void startForegroundService(String classTitle, String classUserId, String token) {
+        public void startForegroundService(String classTitle, String classUserId, String token, String learningId) {
             Intent serviceIntent = new Intent(MainActivity.this, HeartbeatService.class);
             serviceIntent.putExtra("classTitle", classTitle);
             serviceIntent.putExtra("classUserId", classUserId);
             serviceIntent.putExtra("token", token);
+            serviceIntent.putExtra("learningId", learningId);
             
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 MainActivity.this.startForegroundService(serviceIntent);
