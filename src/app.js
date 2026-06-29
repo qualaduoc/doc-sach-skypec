@@ -79,12 +79,15 @@ async function requestApi(url, options = {}) {
       window[callbackName] = (responseStr) => {
         delete window[callbackName];
         try {
+          if (!responseStr || responseStr.trim() === "") {
+            throw new Error("Phản hồi từ hệ thống bị rỗng.");
+          }
           const res = JSON.parse(responseStr);
           if (res.error) {
-            reject(new Error(res.error));
-          } else {
-            resolve(res);
+            // Ném ra toàn bộ chuỗi JSON chi tiết lỗi để hiển thị lên nhật ký chẩn đoán
+            throw new Error(responseStr);
           }
+          resolve(res);
         } catch (e) {
           reject(e);
         }
