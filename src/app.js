@@ -75,47 +75,69 @@ function setupEventListeners() {
 
 // Hàm gửi request hỗ trợ Bypass CORS (nếu chạy trong ứng dụng Android WebView)
 async function requestApi(url, options = {}) {
-  // Nếu đang chạy trong Android WebView có hỗ trợ hàm gọi native bypass CORS
-  if (window.Android && window.Android.makeRequest) {
-    return new Promise((resolve, reject) => {
-      const callbackName = 'api_callback_' + Math.random().toString(36).substring(2, 11);
-      window[callbackName] = (responseStr) => {
-        delete window[callbackName];
-        try {
-          if (!responseStr || responseStr.trim() === "") {
-            throw new Error("Phản hồi từ hệ thống bị rỗng.");
-          }
-          const res = JSON.parse(responseStr);
-          if (res.error) {
-            // Ném ra toàn bộ chuỗi JSON chi tiết lỗi để hiển thị lên nhật ký chẩn đoán
-            throw new Error(responseStr);
-          }
-          resolve(res);
-        } catch (e) {
-          reject(e);
-        }
-      };
-      
-      const nativeOptions = {
-        url: url.startsWith('http') ? url : HOST + url,
-        method: options.method || 'GET',
-        headers: options.headers || {},
-        body: options.body || null,
-        callback: callbackName
-      };
-      
-      window.Android.makeRequest(JSON.stringify(nativeOptions));
-    });
+  const method = options.method || 'GET';
+  
+  // Thiết lập các header mặc định giống như trình duyệt/python script để tránh lỗi lọc của server
+  const headers = {
+    'Accept': 'application/json, text/plain, */*',
+    ...options.headers
+  };
+  
+  // Tự động bổ sung Content-Type nếu gửi dữ liệu POST
+  if (method === 'POST' && !headers['Content-Type']) {
+    headers['Content-Type'] = 'application/json';
+  }
+
+  // BỎ QUA NATIVE BRIDGE, DÙNG FETCH TRỰC TIẾP TRÊN WEBVIEW!
+  // Vì WebView đã được bật setAllowUniversalAccessFromFileURLs(true) nên gọi fetch trực tiếp không bị chặn CORS
+  const fetchUrl = url.startsWith('http') ? url : HOST + url;
+  const fetchOptions = {
+    method: method,
+    headers: headers
+  };
+  
+  if (options.body) {
+    fetchOptions.body = options.body;
   }
   
-  // Nếu chạy trên trình duyệt thường (cần tắt CORS trên Chrome mới chạy được trên PC)
-  const fetchUrl = url.startsWith('http') ? url : HOST + url;
-  const response = await fetch(fetchUrl, options);
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(text || `Lỗi HTTP ${response.status}`);
+  try {
+    const response = await fetch(fetchUrl, fetchOptions);
+    
+    if (!response.ok) {
+      let errText = "";
+      try {
+        errText = await response.text();
+      } catch(e) {}
+      
+      // Đóng gói thông tin lỗi chi tiết dạng JSON để hiển thị chẩn đoán
+      const errObj = {
+        error: `Lỗi HTTP ${response.status}`,
+        statusCode: response.status,
+        url: fetchUrl,
+        method: method,
+        requestHeaders: {
+          ...headers,
+          'Authorization': headers['Authorization'] ? (headers['Authorization'].substring(0, 25) + '...') : 'RỖNG'
+        },
+        serverDetail: errText
+      };
+      throw new Error(JSON.stringify(errObj));
+    }
+    
+    return await response.json();
+  } catch (e) {
+    if (e.message && e.message.startsWith('{')) {
+      throw e;
+    }
+    // Lỗi kết nối mạng (Network Error)
+    const errObj = {
+      error: e.message || "Lỗi kết nối mạng",
+      statusCode: 0,
+      url: fetchUrl,
+      method: method
+    };
+    throw new Error(JSON.stringify(errObj));
   }
-  return response.json();
 }
 
 // Kiểm tra thông tin đăng nhập đã lưu
