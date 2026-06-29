@@ -776,3 +776,289 @@ h2 {
   50% { transform: scale(1.2); opacity: 0.5; box-shadow: 0 0 15px var(--accent-color); }
   100% { transform: scale(1); opacity: 1; }
 }
+
+/* ==========================================
+   DASHBOARD - BẢNG TỔNG HỢP CÁ NHÂN
+   ========================================== */
+
+/* Dashboard KPI Grid */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 16px;
+  animation: fadeIn 0.4s ease;
+}
+
+.kpi-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 10px 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  box-shadow: var(--card-shadow);
+  transition: transform 0.3s ease, border-color 0.3s ease;
+}
+
+.kpi-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--primary-color);
+}
+
+.kpi-card .kpi-num {
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+
+.kpi-card.blue .kpi-num {
+  color: var(--primary-color);
+  text-shadow: 0 0 10px rgba(0, 210, 255, 0.2);
+}
+
+.kpi-card.green .kpi-num {
+  color: var(--accent-color);
+  text-shadow: 0 0 10px rgba(56, 239, 125, 0.2);
+}
+
+.kpi-card.gold .kpi-num {
+  color: #ffb300;
+  text-shadow: 0 0 10px rgba(255, 179, 0, 0.2);
+}
+
+.kpi-card .kpi-label {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+/* Redesigned Search & Filter Bar */
+.filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+  align-items: center;
+}
+
+.search-wrapper {
+  position: relative;
+  flex: 1;
+  min-width: 140px;
+}
+
+.search-wrapper i {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.search-wrapper input {
+  width: 100%;
+  padding: 10px 10px 10px 34px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  color: #fff;
+  font-size: 13px;
+  outline: none;
+  transition: all 0.3s ease;
+}
+
+.search-wrapper input:focus {
+  border-color: var(--primary-color);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* Scientific Table Layout */
+.table-responsive {
+  width: 100%;
+  overflow-y: auto;
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  background: rgba(17, 24, 39, 0.4);
+  box-shadow: var(--card-shadow);
+  margin-bottom: 16px;
+  flex: 1;
+  max-height: calc(100vh - 280px);
+}
+
+.dashboard-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 13px;
+}
+
+.dashboard-table th {
+  background: rgba(255, 255, 255, 0.03);
+  padding: 12px 10px;
+  font-weight: 600;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border-color);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+
+.dashboard-table td {
+  padding: 12px 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  vertical-align: middle;
+  color: var(--text-color);
+}
+
+.dashboard-table tr:last-child td {
+  border-bottom: none;
+}
+
+.dashboard-table tr:hover td {
+  background: rgba(255, 255, 255, 0.01);
+}
+
+.class-title-cell {
+  font-weight: 500;
+  color: #fff;
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.date-text {
+  font-family: monospace;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.points-badge {
+  background: rgba(255, 179, 0, 0.1);
+  color: #ffb300;
+  padding: 2px 6px;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 11px;
+  border: 1px solid rgba(255, 179, 0, 0.15);
+  display: inline-block;
+}
+
+.status-tag {
+  padding: 3px 6px;
+  border-radius: 5px;
+  font-size: 10px;
+  font-weight: 600;
+  display: inline-block;
+}
+
+.status-tag.studying {
+  background: rgba(0, 210, 255, 0.1);
+  color: var(--primary-color);
+  border: 1px solid rgba(0, 210, 255, 0.2);
+}
+
+.status-tag.finished {
+  background: rgba(56, 239, 125, 0.1);
+  color: var(--accent-color);
+  border: 1px solid rgba(56, 239, 125, 0.2);
+}
+
+.btn-table-action {
+  background: var(--primary-gradient);
+  border: none;
+  color: #fff;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 11px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  box-shadow: 0 4px 8px rgba(0, 210, 255, 0.2);
+  transition: all 0.2s ease;
+}
+
+.btn-table-action:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 210, 255, 0.35);
+}
+
+/* Responsive Table -> Cards on Mobile */
+@media (max-width: 600px) {
+  .dashboard-table thead {
+    display: none;
+  }
+  .dashboard-table, .dashboard-table tbody, .dashboard-table tr, .dashboard-table td {
+    display: block;
+    width: 100%;
+  }
+  .dashboard-table tr {
+    margin-bottom: 12px;
+    background: rgba(255, 255, 255, 0.015);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 8px 12px;
+  }
+  .dashboard-table td {
+    text-align: right;
+    padding: 6px 0;
+    position: relative;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  }
+  .dashboard-table td:last-child {
+    border-bottom: none;
+    padding-top: 10px;
+    display: flex;
+    justify-content: flex-end;
+  }
+  .dashboard-table td::before {
+    content: attr(data-label);
+    position: absolute;
+    left: 0;
+    width: 45%;
+    text-align: left;
+    font-weight: 500;
+    color: var(--text-muted);
+    font-size: 12px;
+  }
+  .class-title-cell {
+    text-align: left;
+    font-size: 13px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border-color) !important;
+    margin-bottom: 4px;
+  }
+  .class-title-cell::before {
+    display: none !important;
+  }
+}
+
+/* Author credit styles */
+.author-credit {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 14px;
+  opacity: 0.7;
+  text-align: center;
+  font-weight: 400;
+  letter-spacing: 0.5px;
+}
+
+.app-footer-credit {
+  text-align: center;
+  padding: 10px 0 0 0;
+  font-size: 11px;
+  color: var(--text-muted);
+  border-top: 1px solid var(--border-color);
+  margin-top: auto;
+}
+

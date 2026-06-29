@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Skypec Auto Reader</title>
+  <title>Đọc sách cho to não</title>
   <link rel="stylesheet" href="style.css">
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -16,8 +16,8 @@
         <div class="brand-logo">
           <i class="fa-solid fa-book-open-reader"></i>
         </div>
-        <h2>Skypec Auto Reader</h2>
-        <p class="subtitle">Ứng dụng tự động duy trì tiến độ đọc sách</p>
+        <h2>Đọc sách cho to não</h2>
+        <p class="subtitle">Tự động duy trì tiến độ học tập Skypec</p>
         
         <form id="login-form">
           <div class="input-group">
@@ -34,19 +34,20 @@
           </button>
         </form>
         <div id="login-error" class="error-msg hidden"></div>
+        <p class="author-credit">Tác giả: N.T.Đ 2026</p>
       </div>
     </div>
 
-    <!-- Màn hình chính (Danh sách lớp học) -->
+    <!-- Màn hình chính (Bảng tổng hợp cá nhân khoa học) -->
     <div id="main-screen" class="screen">
-      <header class="app-header">
+      <header class="app-header" style="margin-bottom: 16px;">
         <div class="user-info">
           <div class="avatar">
             <i class="fa-solid fa-user-tie"></i>
           </div>
           <div>
             <h3 id="user-display-name">Học viên</h3>
-            <p id="user-dept" class="subtitle">Trung tâm khai thác</p>
+            <p id="user-dept" class="subtitle" style="margin-bottom: 0;">Trung tâm khai thác</p>
           </div>
         </div>
         <button id="btn-logout" class="btn-icon" title="Đăng xuất">
@@ -54,30 +55,77 @@
         </button>
       </header>
 
+      <!-- Chỉ số KPI học tập trực quan -->
+      <div class="kpi-grid">
+        <div class="kpi-card blue">
+          <span class="kpi-num" id="kpi-total-classes">0</span>
+          <span class="kpi-label">Lớp đã đăng ký</span>
+        </div>
+        <div class="kpi-card green">
+          <span class="kpi-num" id="kpi-studying-classes">0</span>
+          <span class="kpi-label">Lớp đang học</span>
+        </div>
+        <div class="kpi-card gold">
+          <span class="kpi-num" id="kpi-total-points">0</span>
+          <span class="kpi-label">Tổng điểm thưởng</span>
+        </div>
+      </div>
+
+      <!-- Bộ lọc và Tìm kiếm Khoa học -->
       <div class="filter-bar">
-        <div class="select-wrapper">
-          <i class="fa-solid fa-calendar-days"></i>
+        <div class="search-wrapper">
+          <i class="fa-solid fa-magnifying-glass"></i>
+          <input type="text" id="class-search-input" placeholder="Tìm tên lớp học...">
+        </div>
+        <div class="select-wrapper" style="max-width: 100px;">
           <select id="year-select">
+            <option value="all" selected>Tất cả năm</option>
             <option value="2026">Năm 2026</option>
             <option value="2025">Năm 2025</option>
             <option value="2024">Năm 2024</option>
-            <option value="2023" selected>Năm 2023</option>
+            <option value="2023">Năm 2023</option>
             <option value="2022">Năm 2022</option>
           </select>
         </div>
-        <button id="btn-refresh" class="btn-circle" title="Làm mới">
+        <div class="select-wrapper" style="max-width: 110px;">
+          <select id="status-select">
+            <option value="all">Tất cả trạng thái</option>
+            <option value="studying">Đang học</option>
+            <option value="finished">Hoàn thành</option>
+          </select>
+        </div>
+        <button id="btn-refresh" class="btn-icon" title="Làm mới" style="width: 38px; height: 38px; border-radius: 8px;">
           <i class="fa-solid fa-rotate"></i>
         </button>
       </div>
 
-      <div class="class-list-container">
-        <div id="class-list" class="class-list">
-          <!-- Các lớp học sẽ được render động ở đây -->
-          <div class="loading-spinner">
-            <i class="fa-solid fa-circle-notch fa-spin"></i>
-            <p>Đang tải danh sách lớp học...</p>
-          </div>
-        </div>
+      <!-- Bảng danh sách lớp học khoa học -->
+      <div class="table-responsive">
+        <table class="dashboard-table">
+          <thead>
+            <tr>
+              <th>Lớp học</th>
+              <th style="width: 85px; text-align: center;">Từ ngày</th>
+              <th style="width: 85px; text-align: center;">Đến ngày</th>
+              <th style="width: 85px; text-align: center;">Điểm</th>
+              <th style="width: 85px; text-align: center;">Thao tác</th>
+            </tr>
+          </thead>
+          <tbody id="dashboard-table-body">
+            <tr>
+              <td colspan="5" style="text-align: center; padding: 30px;">
+                <div class="loading-spinner">
+                  <i class="fa-solid fa-circle-notch fa-spin"></i>
+                  <p style="margin-top: 8px;">Đang tải danh sách lớp học...</p>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="app-footer-credit">
+        <p>© N.T.Đ 2026 - Đọc sách cho to não</p>
       </div>
     </div>
 

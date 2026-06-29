@@ -13,6 +13,7 @@ const state = {
   token: null,
   user: null,
   classes: [],
+  filteredClasses: [], // Danh sách sau khi lọc để click chính xác
   selectedClass: null,
   activeIntervalId: null,
   sessionStartTime: null,
@@ -40,10 +41,13 @@ function setupEventListeners() {
   // Đăng xuất
   document.getElementById('btn-logout').addEventListener('click', handleLogout);
   
-  // Thay đổi năm học
+  // Thay đổi bộ lọc hiển thị
   document.getElementById('year-select').addEventListener('change', () => {
     loadClasses(document.getElementById('year-select').value);
   });
+  
+  document.getElementById('status-select').addEventListener('change', filterAndRenderClasses);
+  document.getElementById('class-search-input').addEventListener('input', filterAndRenderClasses);
   
   // Làm mới danh sách
   document.getElementById('btn-refresh').addEventListener('click', () => {
@@ -241,80 +245,204 @@ function handleLogout() {
   showScreen('login-screen');
 }
 
-// Tải danh sách lớp học theo năm
-async function loadClasses(year) {
-  const container = document.getElementById('class-list');
-  container.innerHTML = `
-    <div class="loading-spinner">
-      <i class="fa-solid fa-circle-notch fa-spin"></i>
-      <p>Đang tải danh sách lớp học năm ${year}...</p>
-    </div>
-  `;
-  
+// Định dạng ngày tháng DD/MM/YYYY từ chuỗi ISO
+function formatDate(dateStr) {
+  if (!dateStr) return '';
   try {
-    const res = await requestApi(API_PATHS.searchClass, {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return '';
+    const day = d.getDate().toString().padStart(2, '0');
+    const month = (d.getMonth() + 1).toString().padStart(2, '0');
+    const year = d.getFullYear();
+    return `${day}/${month}/${year}`;
+  } catch (e) {
+    return '';
+  }
+}
+
+// Tải danh sách lớp học (hỗ trợ gom tất cả các năm song song)
+async function loadClasses(year) {
+  const tbody = document.getElementById('dashboard-table-body');
+  tbody.innerHTML = `
+    <tr>
+      <td colspan="5" style="text-align: center; padding: 35px;">
+        <div class="loading-spinner">
+          <i class="fa-solid fa-circle-notch fa-spin"></i>
+          <p style="margin-top: 8px;">Đang tải dữ liệu học tập...</p>
+        </div>
+      </td>
+    </tr>
+  `;
+
+  try {
+    let yearsToFetch = [];
+    if (year === 'all') {
+      yearsToFetch = [2022, 2023, 2024, 2025, 2026];
+    } else {
+      yearsToFetch = [parseInt(year)];
+    }
+
+    // Gọi API song song cho tất cả các năm cần lấy
+    const promises = yearsToFetch.map(y => requestApi(API_PATHS.searchClass, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${state.token}`,
-        'Content-Type': 'application/json'
+        'Authorization': `Bearer ${state.token}`
       },
       body: JSON.stringify({
-        year: parseInt(year),
+        year: y,
         month: 0,
         key: '',
         status: -1,
         isFinish: -1,
         pageIndex: 1,
-        pageSize: 100,
+        pageSize: 200, // Tải tối đa 200 lớp mỗi năm để hiển thị hết các trang đằng sau
         orderId: 0
       })
+    }));
+
+    const results = await Promise.all(promises);
+    let mergedClasses = [];
+    const seenIds = new Set();
+
+    results.forEach((res, idx) => {
+      if (res.status && res.data && res.data.details) {
+        const yearVal = yearsToFetch[idx];
+        res.data.details.forEach(item => {
+          const classId = item.id || item.classId;
+          if (classId && !seenIds.has(classId)) {
+            seenIds.add(classId);
+            item.year_group = yearVal;
+            mergedClasses.push(item);
+          }
+        });
+      }
     });
+
+    // Sắp xếp theo ngày bắt đầu lớp học giảm dần (mới nhất lên đầu)
+    mergedClasses.sort((a, b) => {
+      const dateA = new Date(a.classStartDate || a.createdDate || 0);
+      const dateB = new Date(b.classStartDate || b.createdDate || 0);
+      return dateB - dateA;
+    });
+
+    state.classes = mergedClasses;
     
-    if (res.status && res.data && res.data.details) {
-      state.classes = res.data.details;
-      renderClasses(state.classes);
-    } else {
-      container.innerHTML = `<div class="error-msg">Không lấy được danh sách lớp học. Lỗi: ${res.message || 'Unknown'}</div>`;
-    }
+    // Tính toán và hiển thị chỉ số KPI tổng thể (trên tất cả các năm đã tải)
+    updateKPICards(state.classes);
+    
+    // Tiến hành lọc và vẽ giao diện
+    filterAndRenderClasses();
+    
   } catch (err) {
     console.error(err);
-    container.innerHTML = `<div class="error-msg">Không thể kết nối đến máy chủ Skypec. Vui lòng thử lại.</div>`;
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="5" style="text-align: center; padding: 30px; color: var(--danger-color);">
+          Không thể tải dữ liệu. Vui lòng nhấn nút "Làm mới" để thử lại.
+        </td>
+      </tr>
+    `;
   }
 }
 
-// Vẽ danh sách lớp học lên giao diện
-function renderClasses(classes) {
-  const container = document.getElementById('class-list');
-  if (classes.length === 0) {
-    container.innerHTML = `<div class="loading-spinner"><p>Không có lớp học nào trong năm này.</p></div>`;
+// Cập nhật các thẻ KPI học tập
+function updateKPICards(classList) {
+  const totalClasses = classList.length;
+  const studyingClasses = classList.filter(c => c.tenTrangThai === 'Đang học').length;
+  const totalPoints = classList.reduce((sum, c) => sum + (c.rewardPoints || 0), 0);
+
+  document.getElementById('kpi-total-classes').textContent = totalClasses;
+  document.getElementById('kpi-studying-classes').textContent = studyingClasses;
+  document.getElementById('kpi-total-points').textContent = totalPoints;
+}
+
+// Lọc danh sách lớp học theo từ khóa, năm và trạng thái
+function filterAndRenderClasses() {
+  const searchQuery = document.getElementById('class-search-input').value.toLowerCase().trim();
+  const selectedYear = document.getElementById('year-select').value;
+  const selectedStatus = document.getElementById('status-select').value;
+
+  let filtered = state.classes;
+
+  // 1. Lọc theo năm
+  if (selectedYear !== 'all') {
+    const yInt = parseInt(selectedYear);
+    filtered = filtered.filter(c => c.year_group === yInt);
+  }
+
+  // 2. Lọc theo trạng thái
+  if (selectedStatus === 'studying') {
+    filtered = filtered.filter(c => c.tenTrangThai === 'Đang học');
+  } else if (selectedStatus === 'finished') {
+    filtered = filtered.filter(c => c.tenTrangThai === 'Hoàn thành');
+  }
+
+  // 3. Lọc theo từ khóa tìm kiếm
+  if (searchQuery) {
+    filtered = filtered.filter(c => {
+      const title = (c.classTitle || '').toLowerCase();
+      const code = (c.code || '').toLowerCase();
+      return title.includes(searchQuery) || code.includes(searchQuery);
+    });
+  }
+
+  state.filteredClasses = filtered;
+  renderClassesTable(state.filteredClasses);
+}
+
+// Vẽ bảng danh sách lớp học lên giao diện
+function renderClassesTable(classesList) {
+  const tbody = document.getElementById('dashboard-table-body');
+  
+  if (classesList.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="5" style="text-align: center; padding: 30px; color: var(--text-muted);">
+          Không tìm thấy lớp học nào khớp với bộ lọc.
+        </td>
+      </tr>
+    `;
     return;
   }
-  
-  container.innerHTML = '';
-  classes.forEach(c => {
-    const card = document.createElement('div');
+
+  tbody.innerHTML = classesList.map((c, index) => {
+    const title = c.classTitle || 'N/A';
+    const fromDate = formatDate(c.classStartDate);
+    const toDate = formatDate(c.classEndDate) || 'Không giới hạn';
+    const points = c.rewardPoints || 0;
     const isCompleted = c.tenTrangThai === 'Hoàn thành';
-    card.className = `class-card ${isCompleted ? 'completed' : ''}`;
-    
-    // Tìm kiếm thời gian yêu cầu tối thiểu
-    const timeReq = c.planType === '1' ? '430 phút' : 'Yêu cầu';
-    
-    card.innerHTML = `
-      <div class="class-icon">
-        <i class="fa-solid ${isCompleted ? 'fa-circle-check' : 'fa-book'}"></i>
-      </div>
-      <div class="class-details">
-        <h4>${c.classTitle}</h4>
-        <div class="class-meta">
-          <span>${timeReq}</span>
-          <span class="class-status ${isCompleted ? 'completed' : 'active'}">${c.tenTrangThai}</span>
-        </div>
-      </div>
+    const statusClass = isCompleted ? 'finished' : 'studying';
+    const statusText = c.tenTrangThai || 'Đang học';
+
+    return `
+      <tr>
+        <td class="class-title-cell" data-label="Lớp học">
+          ${title}
+          <div style="margin-top: 4px;">
+            <span class="status-tag ${statusClass}">${statusText}</span>
+          </div>
+        </td>
+        <td data-label="Từ ngày" class="date-text" style="text-align: center;">${fromDate}</td>
+        <td data-label="Đến ngày" class="date-text" style="text-align: center;">${toDate}</td>
+        <td data-label="Điểm" style="text-align: center;">
+          <span class="points-badge">${points}</span>
+        </td>
+        <td data-label="Thao tác" style="text-align: center;">
+          <button class="btn-table-action" onclick="handleClassClick(${index})">
+            <i class="fa-solid fa-arrow-right-to-bracket"></i> Vào học
+          </button>
+        </td>
+      </tr>
     `;
-    
-    card.addEventListener('click', () => openClassDetails(c));
-    container.appendChild(card);
-  });
+  }).join('');
+}
+
+// Xử lý khi click chọn lớp học từ bảng dể vào học
+function handleClassClick(index) {
+  const classInfo = state.filteredClasses[index];
+  if (classInfo) {
+    openClassDetails(classInfo);
+  }
 }
 
 // Mở màn hình chi tiết lớp học
