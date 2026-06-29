@@ -19,7 +19,9 @@ const state = {
   sessionStartTime: null,
   timerIntervalId: null,
   estimatedMinutes: 0,
-  logs: []
+  logs: [],
+  ws: null,              // Quản lý kết nối WebSocket LRS
+  wsPingInterval: null   // Vòng lặp gửi gói tin Ping duy trì socket
 };
 
 // Khởi chạy khi tài liệu sẵn sàng
@@ -544,13 +546,16 @@ async function openClassDetails(classInfo) {
       if (learningHistories.length > 0) {
         const bookProgress = learningHistories[0]; // Cuốn sách đầu tiên trong lớp
         state.selectedClass.currentLearnTime = bookProgress.learnTime || joinData.data.totalTime || 0;
+        state.selectedClass.learningId = bookProgress.id; // LƯU LẠI learningId để kết nối WebSocket LRS
         if (bookProgress.isFinish !== undefined && bookProgress.isFinish !== null) {
           state.selectedClass.isFinish = bookProgress.isFinish;
         }
       } else {
         state.selectedClass.currentLearnTime = joinData.data.totalTime || joinData.data.learnTime || 0;
+        state.selectedClass.learningId = null;
       }
       
+      addLog('Mã LRS Learning ID: ' + (state.selectedClass.learningId || 'KHÔNG CÓ'), 'success');
       addLog('Thời gian đã học: ' + state.selectedClass.currentLearnTime.toFixed(1) + ' phút', 'success');
       addLog('Trạng thái hoàn thành: ' + (state.selectedClass.isFinish ? 'Đã hoàn thành' : 'Chưa hoàn thành'), 'info');
       
@@ -613,16 +618,23 @@ function startReading() {
   const audio = document.getElementById('silent-audio');
   audio.play().catch(e => console.log('Cần tương tác người dùng để phát audio: ', e));
   
-  // 2. Gửi tín hiệu nhịp tim đầu tiên ngay lập tức
+  // 2. Kích hoạt kết nối WebSocket LRS để máy chủ bắt đầu tính toán thời gian học thực tế
+  if (state.selectedClass.learningId) {
+    startWebSocket(state.selectedClass.learningId);
+  } else {
+    addLog('Cảnh báo: Không tìm thấy learningId, thời gian học có thể không được cộng trên server!', 'error');
+  }
+  
+  // 3. Gửi tín hiệu nhịp tim đầu tiên ngay lập tức
   sendHeartbeat();
   
-  // 3. Thiết lập vòng lặp nhịp tim mỗi 60 giây (60000 ms)
+  // 4. Thiết lập vòng lặp nhịp tim mỗi 60 giây (60000 ms)
   state.activeIntervalId = setInterval(sendHeartbeat, 60000);
   
-  // 4. Thiết lập bộ đếm thời gian hiển thị giao diện mỗi giây
+  // 5. Thiết lập bộ đếm thời gian hiển thị giao diện mỗi giây
   state.timerIntervalId = setInterval(updateSessionTimer, 1000);
   
-  // 5. Nếu chạy trên app Android Native, thông báo cho Native biết để bật Foreground Service chạy ngầm vĩnh viễn
+  // 6. Nếu chạy trên app Android Native, thông báo cho Native biết để bật Foreground Service chạy ngầm vĩnh viễn
   if (window.Android && window.Android.startForegroundService) {
     window.Android.startForegroundService(
       state.selectedClass.classTitle,
@@ -643,6 +655,9 @@ function stopReading() {
     clearInterval(state.timerIntervalId);
     state.timerIntervalId = null;
   }
+  
+  // Dừng kết nối WebSocket LRS
+  stopWebSocket();
   
   // Dừng nhạc câm
   const audio = document.getElementById('silent-audio');
@@ -809,3 +824,66 @@ function fallbackCopyText(text) {
   }
   document.body.removeChild(textArea);
 }
+
+// Bắt đầu kết nối WebSocket LRS để máy chủ tính thời gian học
+function startWebSocket(learningId) {
+  stopWebSocket(); // Đảm bảo không có kết nối thừa trước đó
+  
+  const wsUrl = `wss://elearning.skypec.com.vn/skypec2.lms.api/socket?learningId=${learningId}&access_token=${state.token}`;
+  addLog('Đang kết nối WebSocket LRS...', 'info');
+  
+  try {
+    state.ws = new WebSocket(wsUrl);
+    
+    state.ws.onopen = () => {
+      addLog('Kết nối WebSocket LRS thành công. Đang gửi Handshake...', 'success');
+      
+      // Gửi handshake của SignalR (kết thúc bằng ký tự 0x1e - ASCII 30)
+      const handshake = JSON.stringify({ protocol: "json", version: 1 }) + String.fromCharCode(30);
+      state.ws.send(handshake);
+      
+      // Gửi ping mỗi 15 giây để duy trì kết nối hoạt động
+      state.wsPingInterval = setInterval(() => {
+        if (state.ws && state.ws.readyState === WebSocket.OPEN) {
+          state.ws.send(JSON.stringify({ type: 6 }) + String.fromCharCode(30));
+        }
+      }, 15000);
+    };
+    
+    state.ws.onmessage = (event) => {
+      const msg = event.data;
+      if (msg.includes('"type":6')) {
+        // Gói tin Ping của server, bỏ qua không in log để tránh rác log
+      } else {
+        addLog('Nhận phản hồi LRS: ' + msg.replace(/\u001e/g, ''), 'info');
+      }
+    };
+    
+    state.ws.onerror = (error) => {
+      addLog('Lỗi kết nối WebSocket LRS: ' + (error.message || 'Không rõ nguyên nhân'), 'error');
+    };
+    
+    state.ws.onclose = (event) => {
+      addLog(`Đã đóng kết nối WebSocket LRS. Mã đóng: ${event.code}`, 'info');
+      if (state.wsPingInterval) {
+        clearInterval(state.wsPingInterval);
+        state.wsPingInterval = null;
+      }
+    };
+  } catch (e) {
+    addLog('Không thể khởi tạo kết nối WebSocket LRS: ' + e.message, 'error');
+  }
+}
+
+// Đóng kết nối WebSocket LRS
+function stopWebSocket() {
+  if (state.ws) {
+    state.ws.close();
+    state.ws = null;
+  }
+  if (state.wsPingInterval) {
+    clearInterval(state.wsPingInterval);
+    state.wsPingInterval = null;
+  }
+}
+
