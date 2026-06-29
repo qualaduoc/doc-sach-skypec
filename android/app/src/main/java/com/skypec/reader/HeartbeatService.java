@@ -84,6 +84,7 @@ public class HeartbeatService extends Service {
             conn.setRequestMethod("GET");
             conn.setRequestProperty("Authorization", "Bearer " + token);
             conn.setRequestProperty("Accept", "application/json, text/plain, */*");
+            conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Mobile Safari/537.36");
             conn.setConnectTimeout(10000);
             conn.setReadTimeout(10000);
 
