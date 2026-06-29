@@ -132,6 +132,13 @@ public class HeartbeatService extends Service {
         }
     }
 
+    // Gửi nhật ký ngược lại lên WebView giao diện thông qua MainActivity
+    private void sendLog(String message, String type) {
+        if (MainActivity.instance != null) {
+            MainActivity.instance.sendLogToWeb(message, type);
+        }
+    }
+
     // Thiết lập kết nối WebSocket LRS
     private void startWebSocket(final String learningId, final String token) {
         stopWebSocket(); // Đóng kết nối cũ nếu có
@@ -143,6 +150,7 @@ public class HeartbeatService extends Service {
 
         String wsUrl = "wss://elearning.skypec.com.vn/skypec2.lms.api/socket?learningId=" + learningId + "&access_token=" + token;
         Log.d(TAG, "Native LRS: Đang kết nối tới " + wsUrl);
+        sendLog("Đang khởi tạo kết nối WebSocket LRS Native...", "info");
 
         Request request = new Request.Builder()
                 .url(wsUrl)
@@ -155,6 +163,7 @@ public class HeartbeatService extends Service {
             @Override
             public void onOpen(WebSocket ws, Response response) {
                 Log.d(TAG, "Native LRS: Kết nối WebSocket thành công. Đang gửi Handshake...");
+                sendLog("Kết nối WebSocket LRS thành công! Đang gửi Handshake...", "success");
                 
                 // Gửi handshake của SignalR (kết thúc bằng ký tự 0x1e - ASCII 30)
                 String handshake = "{\"protocol\":\"json\",\"version\":1}" + (char) 30;
@@ -168,24 +177,29 @@ public class HeartbeatService extends Service {
             public void onMessage(WebSocket ws, String text) {
                 // Nhận phản hồi từ máy chủ
                 if (!text.contains("\"type\":6")) {
-                    Log.d(TAG, "Native LRS: Nhận phản hồi: " + text.replace("\u001e", ""));
+                    String cleanText = text.replace("\u001e", "");
+                    Log.d(TAG, "Native LRS: Nhận phản hồi: " + cleanText);
+                    sendLog("Nhận phản hồi LRS: " + cleanText, "info");
                 }
             }
 
             @Override
             public void onClosing(WebSocket ws, int code, String reason) {
                 Log.d(TAG, "Native LRS: Máy chủ yêu cầu đóng kết nối. Mã: " + code + ", Lý do: " + reason);
+                sendLog("Máy chủ yêu cầu đóng kết nối. Mã: " + code, "info");
             }
 
             @Override
             public void onClosed(WebSocket ws, int code, String reason) {
                 Log.d(TAG, "Native LRS: Kết nối đã đóng. Mã: " + code + ", Lý do: " + reason);
+                sendLog("Đã đóng kết nối WebSocket LRS. Mã đóng: " + code, "info");
                 stopSignalRPing();
             }
 
             @Override
             public void onFailure(WebSocket ws, Throwable t, Response response) {
                 Log.e(TAG, "Native LRS: Kết nối thất bại hoặc bị ngắt đột ngột: " + t.getMessage());
+                sendLog("Lỗi kết nối WebSocket LRS: " + (t.getMessage() != null ? t.getMessage() : "Không rõ nguyên nhân"), "error");
                 stopSignalRPing();
                 
                 // Tự động kết nối lại sau 5 giây nếu dịch vụ vẫn đang chạy
@@ -195,6 +209,7 @@ public class HeartbeatService extends Service {
                         public void run() {
                             if (HeartbeatService.this.webSocket != null) {
                                 Log.d(TAG, "Native LRS: Đang thử kết nối lại...");
+                                sendLog("Đang kết nối lại WebSocket LRS...", "info");
                                 startWebSocket(learningId, token);
                             }
                         }
@@ -248,6 +263,7 @@ public class HeartbeatService extends Service {
         }
         stopWebSocket();
         Log.d(TAG, "Dịch vụ chạy ngầm đã dừng.");
+        sendLog("Đã dừng tiến trình duy trì thời gian đọc sách vĩnh viễn.", "info");
         super.onDestroy();
     }
 

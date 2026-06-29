@@ -22,12 +22,14 @@ import java.util.Iterator;
 
 public class MainActivity extends AppCompatActivity {
 
+    public static MainActivity instance;
     private WebView webView;
 
     @SuppressLint("SetJavaScriptEnabled")
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        instance = this;
         
         // Tạo WebView toàn màn hình
         webView = new WebView(this);
@@ -287,5 +289,23 @@ public class MainActivity extends AppCompatActivity {
         } else {
             super.onBackPressed();
         }
+    }
+
+    // Gửi nhật ký từ tầng Native Java lên giao diện WebView
+    public void sendLogToWeb(final String message, final String type) {
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                if (webView != null) {
+                    try {
+                        String quotedMsg = org.json.JSONObject.quote("[Native] " + message);
+                        String quotedType = org.json.JSONObject.quote(type);
+                        webView.evaluateJavascript("addLog(" + quotedMsg + ", " + quotedType + ");", null);
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+        });
     }
 }
