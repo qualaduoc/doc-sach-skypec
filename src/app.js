@@ -340,11 +340,38 @@ async function openClassDetails(classInfo) {
 
     // 2. Gọi API FrUserJoinClassNew để lấy classUserId thực tế của học viên trong lớp này
     addLog('Đang tải tiến độ học tập thực tế...', 'info');
-    const joinData = await requestApi(`${API_PATHS.joinClass}/${classId}`, {
-      headers: { 'Authorization': `Bearer ${state.token}` }
-    });
+    let joinData = null;
     
-    if (joinData.status && joinData.data) {
+    try {
+      addLog('Thử tải tiến độ qua Path: ' + `${API_PATHS.joinClass}/${classId}`, 'info');
+      joinData = await requestApi(`${API_PATHS.joinClass}/${classId}`, {
+        headers: { 'Authorization': `Bearer ${state.token}` }
+      });
+    } catch (err1) {
+      const is404 = err1.message && (err1.message.includes('404') || err1.message.includes('Not Found'));
+      if (is404) {
+        addLog('Đường dẫn Path trả về 404. Tự động chuyển sang thử nghiệm dạng Query (?classId=)...', 'info');
+        try {
+          joinData = await requestApi(`${API_PATHS.joinClass}?classId=${classId}`, {
+            headers: { 'Authorization': `Bearer ${state.token}` }
+          });
+        } catch (err2) {
+          const is404Query = err2.message && (err2.message.includes('404') || err2.message.includes('Not Found'));
+          if (is404Query) {
+            addLog('Đường dẫn Query (?classId=) trả về 404. Thử tiếp với Query (?id=)...', 'info');
+            joinData = await requestApi(`${API_PATHS.joinClass}?id=${classId}`, {
+              headers: { 'Authorization': `Bearer ${state.token}` }
+            });
+          } else {
+            throw err2;
+          }
+        }
+      } else {
+        throw err1;
+      }
+    }
+    
+    if (joinData && joinData.status && joinData.data) {
       // Lưu lại thông tin chi tiết bao gồm classUserId và danh sách học tập của lớp
       state.selectedClass.classUserId = joinData.data.id;
       addLog('Lấy mã học viên thành công (classUserId): ' + joinData.data.id, 'success');
