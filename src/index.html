@@ -136,9 +136,11 @@
 
         <!-- Ô nhật ký hoạt động luôn hiển thị để theo dõi tiến trình -->
         <div class="console-log-card" style="margin-top: 16px;">
-          <div class="console-header">
-            <span>Nhật ký hoạt động</span>
-            <i class="fa-solid fa-terminal"></i>
+          <div class="console-header" style="display: flex; justify-content: space-between; align-items: center;">
+            <span>Nhật ký hoạt động <i class="fa-solid fa-terminal" style="margin-left: 6px;"></i></span>
+            <button id="btn-copy-log" style="background: rgba(255,255,255,0.1); border: none; color: var(--text-color); padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 12px; display: flex; align-items: center; gap: 4px;">
+              <i class="fa-solid fa-copy"></i> Sao chép
+            </button>
           </div>
           <div id="console-logs" class="console-logs">
             <!-- Logs will be appended here -->

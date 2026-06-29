@@ -68,6 +68,9 @@ function setupEventListeners() {
 
   // Thay đổi số phút mục tiêu thủ công
   document.getElementById('txt-target-time').addEventListener('input', updateProgressUI);
+
+  // Nút sao chép nhật ký
+  document.getElementById('btn-copy-log').addEventListener('click', copyLogsToClipboard);
 }
 
 // Hàm gửi request hỗ trợ Bypass CORS (nếu chạy trong ứng dụng Android WebView)
@@ -619,4 +622,40 @@ function showScreen(screenId) {
     screen.classList.remove('active');
   });
   document.getElementById(screenId).classList.add('active');
+}
+
+// Sao chép toàn bộ nhật ký hoạt động vào bộ nhớ tạm
+function copyLogsToClipboard() {
+  const logsContainer = document.getElementById('console-logs');
+  const text = logsContainer.innerText;
+  
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(() => {
+      alert('Đã sao chép nhật ký vào bộ nhớ tạm!');
+    }).catch(err => {
+      fallbackCopyText(text);
+    });
+  } else {
+    fallbackCopyText(text);
+  }
+}
+
+function fallbackCopyText(text) {
+  const textArea = document.createElement("textarea");
+  textArea.value = text;
+  textArea.style.position = "fixed";
+  document.body.appendChild(textArea);
+  textArea.focus();
+  textArea.select();
+  try {
+    const successful = document.execCommand('copy');
+    if (successful) {
+      alert('Đã sao chép nhật ký vào bộ nhớ tạm!');
+    } else {
+      alert('Không thể sao chép nhật ký.');
+    }
+  } catch (err) {
+    alert('Lỗi khi sao chép: ' + err);
+  }
+  document.body.removeChild(textArea);
 }
