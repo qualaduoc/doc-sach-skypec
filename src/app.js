@@ -675,8 +675,35 @@ function stopReading() {
     addLog('[Android] Đã dừng Foreground Service chạy ngầm.', 'info');
   }
   
-  // Tự động tải lại thông tin lớp học để cập nhật thời gian thực tế vừa tăng
-  openClassDetails(state.selectedClass);
+  // Tự động tải lại tiến độ học tập mới từ server (không làm sạch nhật ký)
+  refreshClassProgress();
+}
+
+// Tải lại tiến độ học tập mới từ server mà không xóa nhật ký hoạt động
+async function refreshClassProgress() {
+  try {
+    const classId = state.selectedClass.classId || state.selectedClass.id;
+    addLog('Đang cập nhật tiến độ học tập mới nhất từ máy chủ...', 'info');
+    
+    const joinData = await requestApi(`${API_PATHS.joinClass}/${classId}`, {
+      headers: { 'Authorization': `Bearer ${state.token}` }
+    });
+    
+    if (joinData && joinData.status && joinData.data) {
+      const learningHistories = joinData.data.lmsClassUserLearning || [];
+      if (learningHistories.length > 0) {
+        state.selectedClass.currentLearnTime = learningHistories[0].learnTime || joinData.data.totalTime || 0;
+        state.selectedClass.isFinish = learningHistories[0].isFinish;
+      } else {
+        state.selectedClass.currentLearnTime = joinData.data.totalTime || joinData.data.learnTime || 0;
+      }
+      
+      addLog(`[Cập nhật thành công] Tiến độ thực tế trên server: ${state.selectedClass.currentLearnTime.toFixed(1)} phút`, 'success');
+      updateProgressUI();
+    }
+  } catch (e) {
+    addLog('Không thể cập nhật tiến độ mới: ' + e.message, 'error');
+  }
 }
 
 // Gửi tín hiệu nhịp tim (Heartbeat) đến máy chủ Skypec
