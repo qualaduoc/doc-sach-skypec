@@ -64,10 +64,14 @@ public class HeartbeatService extends Service {
                 .build();
 
         // Kích hoạt WakeLock để CPU không bị ngủ đông khi tắt màn hình
-        PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
-        if (pm != null) {
-            wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "SkypecReader::WakeLock");
-            wakeLock.acquire(10 * 60 * 1000L /* Giữ 10 phút, nhưng thực tế sẽ được giữ tới khi dừng service */);
+        try {
+            PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
+            if (pm != null) {
+                wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "SkypecReader::WakeLock");
+                wakeLock.acquire(10 * 60 * 1000L /* Giữ 10 phút, nhưng thực tế sẽ được giữ tới khi dừng service */);
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Không thể kích hoạt WakeLock: " + e.getMessage());
         }
     }
 
