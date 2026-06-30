@@ -52,6 +52,7 @@ public class HeartbeatService extends Service {
     private boolean isDestroyed = false;
 
     private PowerManager.WakeLock wakeLock;
+    private android.net.wifi.WifiManager.WifiLock wifiLock;
 
     @Override
     public void onCreate() {
@@ -63,15 +64,28 @@ public class HeartbeatService extends Service {
                 .writeTimeout(15, TimeUnit.SECONDS)
                 .build();
 
-        // Kích hoạt WakeLock để CPU không bị ngủ đông khi tắt màn hình
+        // Kích hoạt WakeLock để CPU không bị ngủ đông khi tắt màn hình (giữ vô hạn đến khi dừng service)
         try {
             PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
             if (pm != null) {
                 wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "SkypecReader::WakeLock");
-                wakeLock.acquire(10 * 60 * 1000L /* Giữ 10 phút, nhưng thực tế sẽ được giữ tới khi dừng service */);
+                wakeLock.acquire(); // Không set timeout để giữ vô hạn
+                Log.d(TAG, "Đã kích hoạt WakeLock vô hạn.");
             }
         } catch (Exception e) {
             Log.e(TAG, "Không thể kích hoạt WakeLock: " + e.getMessage());
+        }
+
+        // Kích hoạt WifiLock để giữ kết nối Wi-Fi hoạt động liên tục khi tắt màn hình
+        try {
+            android.net.wifi.WifiManager wm = (android.net.wifi.WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
+            if (wm != null) {
+                wifiLock = wm.createWifiLock(android.net.wifi.WifiManager.WIFI_MODE_FULL_HIGH_PERF, "SkypecReader::WifiLock");
+                wifiLock.acquire();
+                Log.d(TAG, "Đã kích hoạt WifiLock vô hạn.");
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Không thể kích hoạt WifiLock: " + e.getMessage());
         }
     }
 
@@ -317,6 +331,9 @@ public class HeartbeatService extends Service {
         }
         if (wakeLock != null && wakeLock.isHeld()) {
             wakeLock.release();
+        }
+        if (wifiLock != null && wifiLock.isHeld()) {
+            wifiLock.release();
         }
         Log.d(TAG, "Dịch vụ chạy ngầm đã dừng và dọn dẹp kết nối.");
         super.onDestroy();
