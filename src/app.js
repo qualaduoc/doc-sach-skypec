@@ -99,7 +99,8 @@ async function requestApi(url, options = {}) {
   const fetchUrl = url.startsWith('http') ? url : HOST + url;
   const fetchOptions = {
     method: method,
-    headers: headers
+    headers: headers,
+    credentials: 'include' // Bắt buộc phải có để WebView lưu lại Cookie từ phản hồi chéo tên miền (cross-origin)
   };
   
   if (options.body) {
