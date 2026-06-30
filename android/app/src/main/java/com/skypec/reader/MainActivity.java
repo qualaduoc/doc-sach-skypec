@@ -148,7 +148,7 @@ public class MainActivity extends AppCompatActivity {
                 sendLogToWeb("Đã tải xong trang: " + url, "info");
 
                 // 1. Tự động điền thông tin và đăng nhập khi gặp trang đăng nhập
-                if (url.contains("/dang-nhap") || url.equals("https://elearning.skypec.com.vn/")) {
+                if (url.contains("/signin") || url.equals("https://elearning.skypec.com.vn/")) {
                     sendLogToWeb("Đang tự động thực hiện đăng nhập...", "info");
                     String jsLogin = "javascript:(function() {" +
                             "   var userField = document.getElementById('username') || document.querySelector('input[type=\"text\"]');" +
@@ -285,7 +285,7 @@ public class MainActivity extends AppCompatActivity {
                 @Override
                 public void run() {
                     sendLogToWeb("Đang khởi động tiến trình giả lập trình duyệt...", "info");
-                    automationWebView.loadUrl("https://elearning.skypec.com.vn/dang-nhap");
+                    automationWebView.loadUrl("https://elearning.skypec.com.vn/signin");
                 }
             });
         }
