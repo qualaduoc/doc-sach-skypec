@@ -41,6 +41,13 @@ public class MainActivity extends AppCompatActivity {
         settings.setDatabaseEnabled(true);
         settings.setAllowFileAccess(true);
         
+        // Cho phép lưu trữ và nhận Cookie (kể cả từ tên miền chéo/bên thứ ba khi chạy từ file://)
+        android.webkit.CookieManager cookieManager = android.webkit.CookieManager.getInstance();
+        cookieManager.setAcceptCookie(true);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            cookieManager.setAcceptThirdPartyCookies(webView, true);
+        }
+        
         // Cho phép gọi API chéo tên miền từ file:///android_asset
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
             settings.setAllowFileAccessFromFileURLs(true);
