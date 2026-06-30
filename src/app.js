@@ -215,7 +215,7 @@ async function performLogin(username, password) {
       displayName = `${state.user.lastName} ${state.user.firstName}`;
     }
     
-    document.getElementById('user-display-name').textContent = displayName;
+    document.getElementById('user-display-name').innerHTML = `Chào mừng Khầy, <span style="color: var(--primary-color); font-weight: 700;">${displayName}</span>!`;
     document.getElementById('user-dept').textContent = state.user.departmentName || 'Học viên Skypec';
     
     showScreen('main-screen');
@@ -270,7 +270,7 @@ async function loadClasses(year) {
   const tbody = document.getElementById('dashboard-table-body');
   tbody.innerHTML = `
     <tr>
-      <td colspan="5" style="text-align: center; padding: 35px;">
+      <td colspan="6" style="text-align: center; padding: 35px;">
         <div class="loading-spinner">
           <i class="fa-solid fa-circle-notch fa-spin"></i>
           <p style="margin-top: 8px;">Đang tải dữ liệu học tập...</p>
@@ -330,6 +330,36 @@ async function loadClasses(year) {
       return dateB - dateA;
     });
 
+    // Tải thông tin chi tiết (phút học và phút yêu cầu) cho từng lớp học song song để hiển thị trên danh sách
+    await Promise.all(mergedClasses.map(async (c) => {
+      try {
+        const classId = c.id || c.classId;
+        const joinData = await requestApi(`/skypec2.lms.api/api/v1/LmsClass/FrUserJoinClassNew/${classId}`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${state.token}`
+          }
+        });
+        if (joinData && joinData.status && joinData.data) {
+          const learningHistories = joinData.data.lmsClassUserLearning || [];
+          if (learningHistories.length > 0) {
+            const progress = learningHistories[0];
+            c.learnTime = progress.learnTime || joinData.data.totalTime || 0;
+            c.minTimeRequired = progress.minTimeRequired || 430;
+          } else {
+            c.learnTime = joinData.data.totalTime || 0;
+            c.minTimeRequired = 430;
+          }
+        } else {
+          c.learnTime = 0;
+          c.minTimeRequired = 430;
+        }
+      } catch (err) {
+        c.learnTime = 0;
+        c.minTimeRequired = 430;
+      }
+    }));
+
     state.classes = mergedClasses;
     
     // Tính toán và hiển thị chỉ số KPI tổng thể (trên tất cả các năm đã tải)
@@ -342,7 +372,7 @@ async function loadClasses(year) {
     console.error(err);
     tbody.innerHTML = `
       <tr>
-        <td colspan="5" style="text-align: center; padding: 30px; color: var(--danger-color);">
+        <td colspan="6" style="text-align: center; padding: 30px; color: var(--danger-color);">
           Không thể tải dữ liệu. Vui lòng nhấn nút "Làm mới" để thử lại.
         </td>
       </tr>
@@ -402,7 +432,7 @@ function renderClassesTable(classesList) {
   if (classesList.length === 0) {
     tbody.innerHTML = `
       <tr>
-        <td colspan="5" style="text-align: center; padding: 30px; color: var(--text-muted);">
+        <td colspan="6" style="text-align: center; padding: 30px; color: var(--text-muted);">
           Không tìm thấy lớp học nào khớp với bộ lọc.
         </td>
       </tr>
@@ -419,6 +449,9 @@ function renderClassesTable(classesList) {
     const statusClass = isCompleted ? 'finished' : 'studying';
     const statusText = c.tenTrangThai || 'Đang học';
 
+    const minutesRead = c.learnTime ? c.learnTime.toFixed(1) : '0.0';
+    const minutesRequired = c.minTimeRequired || 430;
+
     return `
       <tr>
         <td class="class-title-cell" data-label="Lớp học">
@@ -429,6 +462,11 @@ function renderClassesTable(classesList) {
         </td>
         <td data-label="Từ ngày" class="date-text" style="text-align: center;">${fromDate}</td>
         <td data-label="Đến ngày" class="date-text" style="text-align: center;">${toDate}</td>
+        <td data-label="Tiến độ" style="text-align: center;">
+          <span style="font-weight: 600; color: var(--primary-color);">${minutesRead}</span>
+          <span style="color: var(--text-muted); font-size: 0.85em;">/</span>
+          <span style="color: var(--text-muted); font-size: 0.85em;">${minutesRequired} ph</span>
+        </td>
         <td data-label="Điểm" style="text-align: center;">
           <span class="points-badge">${points}</span>
         </td>
@@ -641,11 +679,13 @@ function startReading() {
   
   // 6. Nếu chạy trên app Android Native, bật Foreground Service để chống sleep CPU khi khóa màn hình
   if (window.Android && window.Android.startForegroundService) {
+    const classId = state.selectedClass.classId || state.selectedClass.id;
     window.Android.startForegroundService(
       state.selectedClass.classTitle,
       classUserId,
       state.token,
-      state.selectedClass.learningId
+      state.selectedClass.learningId,
+      classId
     );
     addLog('[Android] Đã kích hoạt Foreground Service để giữ CPU hoạt động.', 'success');
   }

@@ -306,12 +306,13 @@ public class MainActivity extends AppCompatActivity {
 
         // Bắt đầu dịch vụ chạy ngầm Foreground Service để giữ CPU hoạt động (WakeLock)
         @JavascriptInterface
-        public void startForegroundService(String classTitle, String classUserId, String token, String learningId) {
+        public void startForegroundService(String classTitle, String classUserId, String token, String learningId, String classId) {
             Intent serviceIntent = new Intent(MainActivity.this, HeartbeatService.class);
             serviceIntent.putExtra("classTitle", classTitle);
             serviceIntent.putExtra("classUserId", classUserId);
             serviceIntent.putExtra("token", token);
             serviceIntent.putExtra("learningId", learningId);
+            serviceIntent.putExtra("classId", classId);
             
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 MainActivity.this.startForegroundService(serviceIntent);
