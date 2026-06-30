@@ -265,8 +265,8 @@ public class MainActivity extends AppCompatActivity {
                 e.printStackTrace();
             }
             
-            // Đẩy thông báo khẩn cấp
-            showHighPriorityNotification("Yêu cầu giải Captcha", "Vui lòng mở App và tích chọn xác minh Captcha để duy trì học tập.");
+            // Đẩy thông báo khẩn cấp bằng hàm dùng chung
+            showNotification("Yêu cầu giải Captcha", "Vui lòng mở App và tích chọn xác minh Captcha để duy trì học tập.", "SkypecReaderCaptchaChannel", "Yêu cầu giải Captcha");
         }
     }
 
@@ -464,41 +464,7 @@ public class MainActivity extends AppCompatActivity {
         // Hiển thị thông báo đẩy rung và kêu chuông khi hoàn thành mục tiêu
         @JavascriptInterface
         public void showCompletionNotification(String title, String message) {
-            android.app.NotificationManager notificationManager = (android.app.NotificationManager) getSystemService(android.content.Context.NOTIFICATION_SERVICE);
-            String channelId = "SkypecReaderCompletionChannel";
-            
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                android.app.NotificationChannel channel = new android.app.NotificationChannel(
-                        channelId,
-                        "Thông báo hoàn thành đọc sách",
-                        android.app.NotificationManager.IMPORTANCE_HIGH
-                );
-                channel.setDescription("Thông báo khi hoàn thành đủ số phút đọc sách");
-                channel.enableVibration(true);
-                channel.setVibrationPattern(new long[]{0, 500, 250, 500}); // Rung 2 lần
-                if (notificationManager != null) {
-                    notificationManager.createNotificationChannel(channel);
-                }
-            }
-            
-            Intent intent = new Intent(MainActivity.this, MainActivity.class);
-            PendingIntent pendingIntent = PendingIntent.getActivity(
-                    MainActivity.this, 0, intent,
-                    android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M ? PendingIntent.FLAG_IMMUTABLE : 0
-            );
-            
-            androidx.core.app.NotificationCompat.Builder builder = new androidx.core.app.NotificationCompat.Builder(MainActivity.this, channelId)
-                    .setSmallIcon(android.R.drawable.ic_dialog_info)
-                    .setContentTitle(title)
-                    .setContentText(message)
-                    .setAutoCancel(true)
-                    .setDefaults(android.app.Notification.DEFAULT_ALL) // Dùng âm thanh và rung mặc định
-                    .setPriority(androidx.core.app.NotificationCompat.PRIORITY_HIGH)
-                    .setContentIntent(pendingIntent);
-                    
-            if (notificationManager != null) {
-                notificationManager.notify(2, builder.build());
-            }
+            showNotification(title, message, "SkypecReaderCompletionChannel", "Thông báo hoàn thành đọc sách");
         }
     }
 
@@ -559,5 +525,42 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
         });
+    }
+
+    // Hàm hiển thị thông báo dùng chung cho toàn bộ ứng dụng
+    public void showNotification(String title, String message, String channelId, String channelName) {
+        android.app.NotificationManager notificationManager = (android.app.NotificationManager) getSystemService(android.content.Context.NOTIFICATION_SERVICE);
+        
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            android.app.NotificationChannel channel = new android.app.NotificationChannel(
+                    channelId,
+                    channelName,
+                    android.app.NotificationManager.IMPORTANCE_HIGH
+            );
+            channel.enableVibration(true);
+            channel.setVibrationPattern(new long[]{0, 500, 250, 500});
+            if (notificationManager != null) {
+                notificationManager.createNotificationChannel(channel);
+            }
+        }
+        
+        Intent intent = new Intent(this, MainActivity.class);
+        PendingIntent pendingIntent = PendingIntent.getActivity(
+                this, 0, intent,
+                android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M ? PendingIntent.FLAG_IMMUTABLE : 0
+        );
+        
+        androidx.core.app.NotificationCompat.Builder builder = new androidx.core.app.NotificationCompat.Builder(this, channelId)
+                .setSmallIcon(android.R.drawable.ic_dialog_info)
+                .setContentTitle(title)
+                .setContentText(message)
+                .setAutoCancel(true)
+                .setDefaults(android.app.Notification.DEFAULT_ALL)
+                .setPriority(androidx.core.app.NotificationCompat.PRIORITY_HIGH)
+                .setContentIntent(pendingIntent);
+                
+        if (notificationManager != null) {
+            notificationManager.notify(2, builder.build());
+        }
     }
 }
