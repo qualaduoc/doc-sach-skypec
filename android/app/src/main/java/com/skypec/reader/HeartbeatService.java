@@ -152,12 +152,31 @@ public class HeartbeatService extends Service {
         Log.d(TAG, "Native LRS: Đang kết nối tới " + wsUrl);
         sendLog("Đang khởi tạo kết nối WebSocket LRS Native...", "info");
 
-        Request request = new Request.Builder()
+        // Lấy toàn bộ Cookie từ WebView để gửi kèm (giữ sticky session cho load balancer)
+        String cookieHeader = null;
+        try {
+            cookieHeader = android.webkit.CookieManager.getInstance().getCookie("https://elearning.skypec.com.vn");
+            if (cookieHeader != null) {
+                Log.d(TAG, "Native LRS: Gửi kèm Cookie: " + cookieHeader);
+                sendLog("Đang gửi kèm Cookie đồng bộ từ WebView...", "info");
+            } else {
+                Log.w(TAG, "Native LRS: Không tìm thấy Cookie trong CookieManager.");
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Lỗi khi lấy Cookie từ CookieManager: " + e.getMessage());
+        }
+
+        Request.Builder requestBuilder = new Request.Builder()
                 .url(wsUrl)
                 .addHeader("Origin", "https://elearning.skypec.com.vn")
                 .addHeader("Referer", "https://elearning.skypec.com.vn/lop-hoc/chi-tiet/bff53599-c8eb-411b-bb6f-70e3b3791c64")
-                .addHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-                .build();
+                .addHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
+
+        if (cookieHeader != null) {
+            requestBuilder.addHeader("Cookie", cookieHeader);
+        }
+
+        Request request = requestBuilder.build();
 
         webSocket = okHttpClient.newWebSocket(request, new WebSocketListener() {
             @Override
