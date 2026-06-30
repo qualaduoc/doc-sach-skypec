@@ -17,12 +17,6 @@ import java.net.URL;
 import java.util.Timer;
 import java.util.TimerTask;
 
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.Response;
-import okhttp3.WebSocket;
-import okhttp3.WebSocketListener;
-
 public class HeartbeatService extends Service {
 
     private static final String CHANNEL_ID = "SkypecReaderChannel";
@@ -32,12 +26,6 @@ public class HeartbeatService extends Service {
     private String classTitle;
     private String classUserId;
     private String token;
-    private String learningId;
-
-    // Các thành phần kết nối WebSocket Native
-    private OkHttpClient okHttpClient;
-    private WebSocket webSocket;
-    private Timer wsPingTimer;
 
     @Override
     public void onCreate() {
@@ -51,8 +39,7 @@ public class HeartbeatService extends Service {
             classTitle = intent.getStringExtra("classTitle");
             classUserId = intent.getStringExtra("classUserId");
             token = intent.getStringExtra("token");
-            learningId = intent.getStringExtra("learningId");
-            Log.d(TAG, "Dịch vụ khởi chạy với classUserId=" + classUserId + ", learningId=" + learningId);
+            Log.d(TAG, "Dịch vụ chạy ngầm khởi động với classUserId=" + classUserId);
         }
 
         // Tạo thông báo hiển thị trên thanh trạng thái (Foreground Notification)
@@ -72,14 +59,7 @@ public class HeartbeatService extends Service {
         // Đưa dịch vụ lên chế độ chạy ngầm ưu tiên cao nhất (Foreground Service)
         startForeground(1, notification);
 
-        // 1. Khởi động kết nối WebSocket LRS ở tầng Native
-        if (learningId != null && token != null) {
-            startWebSocket(learningId, token);
-        } else {
-            Log.e(TAG, "Không tìm thấy learningId hoặc token để khởi chạy WebSocket LRS.");
-        }
-
-        // 2. Bắt đầu vòng lặp nhịp tim gửi tín hiệu HTTP GET tính giờ đọc sách (Dự phòng trạng thái)
+        // Bắt đầu vòng lặp nhịp tim gửi tín hiệu HTTP GET dự phòng
         startHeartbeatLoop();
 
         return START_NOT_STICKY;
@@ -132,157 +112,13 @@ public class HeartbeatService extends Service {
         }
     }
 
-    // Gửi nhật ký ngược lại lên WebView giao diện thông qua MainActivity
-    private void sendLog(String message, String type) {
-        if (MainActivity.instance != null) {
-            MainActivity.instance.sendLogToWeb(message, type);
-        }
-    }
-
-    // Thiết lập kết nối WebSocket LRS
-    private void startWebSocket(final String learningId, final String token) {
-        stopWebSocket(); // Đóng kết nối cũ nếu có
-
-        okHttpClient = new OkHttpClient.Builder()
-                .connectTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
-                .readTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
-                .build();
-
-        String wsUrl = "wss://elearning.skypec.com.vn/skypec2.lms.api/socket?learningId=" + learningId + "&access_token=" + token;
-        Log.d(TAG, "Native LRS: Đang kết nối tới " + wsUrl);
-        sendLog("Đang khởi tạo kết nối WebSocket LRS Native...", "info");
-
-        // Lấy toàn bộ Cookie từ WebView để gửi kèm (giữ sticky session cho load balancer)
-        String cookieHeader = null;
-        try {
-            cookieHeader = android.webkit.CookieManager.getInstance().getCookie("https://elearning.skypec.com.vn");
-            if (cookieHeader != null) {
-                Log.d(TAG, "Native LRS: Gửi kèm Cookie: " + cookieHeader);
-                sendLog("Đang gửi kèm Cookie đồng bộ từ WebView...", "info");
-            } else {
-                Log.w(TAG, "Native LRS: Không tìm thấy Cookie trong CookieManager.");
-            }
-        } catch (Exception e) {
-            Log.e(TAG, "Lỗi khi lấy Cookie từ CookieManager: " + e.getMessage());
-        }
-
-        Request.Builder requestBuilder = new Request.Builder()
-                .url(wsUrl)
-                .addHeader("Origin", "https://elearning.skypec.com.vn")
-                .addHeader("Referer", "https://elearning.skypec.com.vn/lop-hoc/chi-tiet/bff53599-c8eb-411b-bb6f-70e3b3791c64")
-                .addHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
-
-        if (cookieHeader != null) {
-            requestBuilder.addHeader("Cookie", cookieHeader);
-        }
-
-        Request request = requestBuilder.build();
-
-        webSocket = okHttpClient.newWebSocket(request, new WebSocketListener() {
-            @Override
-            public void onOpen(WebSocket ws, Response response) {
-                Log.d(TAG, "Native LRS: Kết nối WebSocket thành công. Đang gửi Handshake...");
-                sendLog("Kết nối WebSocket LRS thành công! Đang gửi Handshake...", "success");
-                
-                // Gửi handshake của SignalR (kết thúc bằng ký tự 0x1e - ASCII 30)
-                String handshake = "{\"protocol\":\"json\",\"version\":1}" + (char) 30;
-                ws.send(handshake);
-
-                // Kích hoạt luồng gửi Ping giữ kết nối
-                startSignalRPing();
-            }
-
-            @Override
-            public void onMessage(WebSocket ws, String text) {
-                // Nhận phản hồi từ máy chủ
-                if (!text.contains("\"type\":6")) {
-                    String cleanText = text.replace("\u001e", "");
-                    Log.d(TAG, "Native LRS: Nhận phản hồi: " + cleanText);
-                    sendLog("Nhận phản hồi LRS: " + cleanText, "info");
-                }
-            }
-
-            @Override
-            public void onClosing(WebSocket ws, int code, String reason) {
-                Log.d(TAG, "Native LRS: Máy chủ yêu cầu đóng kết nối. Mã: " + code + ", Lý do: " + reason);
-                sendLog("Máy chủ yêu cầu đóng kết nối. Mã: " + code, "info");
-            }
-
-            @Override
-            public void onClosed(WebSocket ws, int code, String reason) {
-                Log.d(TAG, "Native LRS: Kết nối đã đóng. Mã: " + code + ", Lý do: " + reason);
-                sendLog("Đã đóng kết nối WebSocket LRS. Mã đóng: " + code, "info");
-                stopSignalRPing();
-            }
-
-            @Override
-            public void onFailure(WebSocket ws, Throwable t, Response response) {
-                Log.e(TAG, "Native LRS: Kết nối thất bại hoặc bị ngắt đột ngột: " + t.getMessage());
-                sendLog("Lỗi kết nối WebSocket LRS: " + (t.getMessage() != null ? t.getMessage() : "Không rõ nguyên nhân"), "error");
-                stopSignalRPing();
-                
-                // Tự động kết nối lại sau 5 giây nếu dịch vụ vẫn đang chạy
-                if (HeartbeatService.this.webSocket != null) {
-                    new Timer().schedule(new TimerTask() {
-                        @Override
-                        public void run() {
-                            if (HeartbeatService.this.webSocket != null) {
-                                Log.d(TAG, "Native LRS: Đang thử kết nối lại...");
-                                sendLog("Đang kết nối lại WebSocket LRS...", "info");
-                                startWebSocket(learningId, token);
-                            }
-                        }
-                    }, 5000);
-                }
-            }
-        });
-    }
-
-    // Gửi gói tin Ping định kỳ cho SignalR
-    private void startSignalRPing() {
-        stopSignalRPing();
-        wsPingTimer = new Timer();
-        wsPingTimer.scheduleAtFixedRate(new TimerTask() {
-            @Override
-            public void run() {
-                if (webSocket != null) {
-                    // Gói tin Ping của SignalR (kết thúc bằng ký tự 0x1e)
-                    String ping = "{\"type\":6}" + (char) 30;
-                    webSocket.send(ping);
-                    Log.d(TAG, "Native LRS: Đã gửi Ping giữ kết nối.");
-                }
-            }
-        }, 15000, 15000); // Gửi mỗi 15 giây
-    }
-
-    private void stopSignalRPing() {
-        if (wsPingTimer != null) {
-            wsPingTimer.cancel();
-            wsPingTimer = null;
-        }
-    }
-
-    private void stopWebSocket() {
-        stopSignalRPing();
-        if (webSocket != null) {
-            webSocket.close(1000, "Service stopped");
-            webSocket = null;
-        }
-        if (okHttpClient != null) {
-            okHttpClient.dispatcher().executorService().shutdown();
-            okHttpClient = null;
-        }
-    }
-
     @Override
     public void onDestroy() {
         if (timer != null) {
             timer.cancel();
             timer = null;
         }
-        stopWebSocket();
         Log.d(TAG, "Dịch vụ chạy ngầm đã dừng.");
-        sendLog("Đã dừng tiến trình duy trì thời gian đọc sách vĩnh viễn.", "info");
         super.onDestroy();
     }
 
@@ -305,4 +141,5 @@ public class HeartbeatService extends Service {
         }
     }
 }
+
 

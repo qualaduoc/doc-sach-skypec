@@ -12,6 +12,7 @@ const API_PATHS = {
 const state = {
   token: null,
   user: null,
+  password: null,        // Lưu mật khẩu phục vụ giả lập trình duyệt đăng nhập
   classes: [],
   filteredClasses: [], // Danh sách sau khi lọc để click chính xác
   selectedClass: null,
@@ -191,6 +192,7 @@ async function performLogin(username, password) {
     });
     
     state.token = tokenData.access_token;
+    state.password = password; // Lưu mật khẩu tạm thời vào trạng thái ứng dụng
     
     // Lưu thông tin đăng nhập nếu thành công
     localStorage.setItem('skypec_username', username);
@@ -619,23 +621,25 @@ function startReading() {
   const audio = document.getElementById('silent-audio');
   audio.play().catch(e => console.log('Cần tương tác người dùng để phát audio: ', e));
   
-  // 2. Ghi nhận thông tin LRS Learning ID
-  if (state.selectedClass.learningId) {
-    addLog('Đã nạp LRS Learning ID: ' + state.selectedClass.learningId, 'info');
+  // 2. Kích hoạt giả lập trình duyệt bằng WebView phụ chạy tự động hóa (Nếu có Native Bridge)
+  if (window.Android && window.Android.startAutomation) {
+    const classId = state.selectedClass.classId || state.selectedClass.id;
+    window.Android.startAutomation(classId, localStorage.getItem('skypec_username'), state.password);
+    addLog('[Android] Đang khởi chạy WebView ẩn tự động hóa học tập...', 'success');
   } else {
-    addLog('Cảnh báo: Không tìm thấy learningId, thời gian học có thể không được cộng trên server!', 'error');
+    addLog('Chế độ giả lập trình duyệt chỉ khả dụng trên App Android Native.', 'warning');
   }
   
-  // 3. Gửi tín hiệu nhịp tim đầu tiên ngay lập tức
+  // 3. Gửi tín hiệu nhịp tim HTTP GET đầu tiên dự phòng
   sendHeartbeat();
   
-  // 4. Thiết lập vòng lặp nhịp tim mỗi 60 giây (60000 ms)
+  // 4. Thiết lập vòng lặp nhịp tim HTTP dự phòng mỗi 60 giây
   state.activeIntervalId = setInterval(sendHeartbeat, 60000);
   
   // 5. Thiết lập bộ đếm thời gian hiển thị giao diện mỗi giây
   state.timerIntervalId = setInterval(updateSessionTimer, 1000);
   
-  // 6. Nếu chạy trên app Android Native, thông báo cho Native biết để bật Foreground Service chạy ngầm vĩnh viễn
+  // 6. Nếu chạy trên app Android Native, bật Foreground Service để chống sleep CPU khi khóa màn hình
   if (window.Android && window.Android.startForegroundService) {
     window.Android.startForegroundService(
       state.selectedClass.classTitle,
@@ -643,7 +647,7 @@ function startReading() {
       state.token,
       state.selectedClass.learningId
     );
-    addLog('[Android] Đã kích hoạt Foreground Service kèm WebSocket LRS Native.', 'success');
+    addLog('[Android] Đã kích hoạt Foreground Service để giữ CPU hoạt động.', 'success');
   }
 }
 
@@ -668,10 +672,16 @@ function stopReading() {
   
   addLog('Đã dừng tiến trình duy trì thời gian đọc sách.', 'info');
   
-  // Thông báo dừng dịch vụ chạy ngầm của Android Native
-  if (window.Android && window.Android.stopForegroundService) {
-    window.Android.stopForegroundService();
-    addLog('[Android] Đã dừng Foreground Service chạy ngầm.', 'info');
+  // Thông báo dừng dịch vụ chạy ngầm và tự động hóa của Android Native
+  if (window.Android) {
+    if (window.Android.stopAutomation) {
+      window.Android.stopAutomation();
+      addLog('[Android] Đã dừng WebView tự động hóa.', 'info');
+    }
+    if (window.Android.stopForegroundService) {
+      window.Android.stopForegroundService();
+      addLog('[Android] Đã dừng Foreground Service chạy ngầm.', 'info');
+    }
   }
   
   // Tự động tải lại tiến độ học tập mới từ server (không làm sạch nhật ký)

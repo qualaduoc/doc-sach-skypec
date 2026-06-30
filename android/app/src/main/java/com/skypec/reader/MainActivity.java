@@ -24,17 +24,60 @@ public class MainActivity extends AppCompatActivity {
 
     public static MainActivity instance;
     private WebView webView;
+    private WebView automationWebView;
+    private android.widget.FrameLayout layoutContainer;
+    private android.widget.Button btnHideAutomation;
+    
+    private String autoClassId;
+    private String autoUsername;
+    private String autoPassword;
+    private boolean isAutomating = false;
 
-    @SuppressLint("SetJavaScriptEnabled")
+    @SuppressLint({"SetJavaScriptEnabled", "ClickableViewAccessibility"})
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         instance = this;
         
-        // Tạo WebView toàn màn hình
-        webView = new WebView(this);
-        setContentView(webView);
+        // Tạo container FrameLayout chứa cả 2 WebView
+        layoutContainer = new android.widget.FrameLayout(this);
+        setContentView(layoutContainer);
 
+        // 1. WebView Giao diện chính (Xem danh sách, logs...)
+        webView = new WebView(this);
+        layoutContainer.addView(webView, new android.widget.FrameLayout.LayoutParams(
+                android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
+                android.widget.FrameLayout.LayoutParams.MATCH_PARENT
+        ));
+
+        // 2. WebView tự động hóa (Mặc định ẩn dưới nền)
+        automationWebView = new WebView(this);
+        automationWebView.setVisibility(android.view.View.INVISIBLE);
+        layoutContainer.addView(automationWebView, new android.widget.FrameLayout.LayoutParams(
+                android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
+                android.widget.FrameLayout.LayoutParams.MATCH_PARENT
+        ));
+
+        // 3. Nút bấm ẩn WebView tự động hóa để quay lại giao diện App chính
+        btnHideAutomation = new android.widget.Button(this);
+        btnHideAutomation.setText("ẨN TRÌNH DUYỆT (QUAY LẠI APP)");
+        btnHideAutomation.setBackgroundColor(android.graphics.Color.parseColor("#ff3333"));
+        btnHideAutomation.setTextColor(android.graphics.Color.WHITE);
+        btnHideAutomation.setVisibility(android.view.View.GONE);
+        android.widget.FrameLayout.LayoutParams btnParams = new android.widget.FrameLayout.LayoutParams(
+                android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
+                150,
+                android.view.Gravity.BOTTOM
+        );
+        layoutContainer.addView(btnHideAutomation, btnParams);
+        btnHideAutomation.setOnClickListener(new android.view.View.OnClickListener() {
+            @Override
+            public void onClick(android.view.View v) {
+                hideAutomationView();
+            }
+        });
+
+        // Cấu hình WebView giao diện chính
         WebSettings settings = webView.getSettings();
         settings.setJavaScriptEnabled(true);
         settings.setDomStorageEnabled(true);
@@ -80,17 +123,188 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        // Đăng ký cầu nối JavascriptInterface tên là "Android"
-        webView.addJavascriptInterface(new WebAppInterface(), "Android");
+        // Cấu hình WebView tự động hóa
+        WebSettings autoSettings = automationWebView.getSettings();
+        autoSettings.setJavaScriptEnabled(true);
+        autoSettings.setDomStorageEnabled(true);
+        autoSettings.setDatabaseEnabled(true);
+        autoSettings.setAllowFileAccess(true);
+        autoSettings.setUseWideViewPort(true);
+        autoSettings.setLoadWithOverviewMode(true);
+        // Giả lập User-Agent là trình duyệt Chrome trên Desktop để giảm thiểu lỗi giao diện mobile của Skypec
+        autoSettings.setUserAgentString("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
 
-        // Load giao diện HTML từ thư mục assets
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            cookieManager.setAcceptThirdPartyCookies(automationWebView, true);
+        }
+
+        automationWebView.setWebViewClient(new WebViewClient() {
+            @Override
+            public void onPageFinished(WebView view, String url) {
+                super.onPageFinished(view, url);
+                if (!isAutomating) return;
+
+                android.util.Log.d("Automation", "Page finished loading: " + url);
+                sendLogToWeb("Đã tải xong trang: " + url, "info");
+
+                // 1. Tự động điền thông tin và đăng nhập khi gặp trang đăng nhập
+                if (url.contains("/dang-nhap") || url.equals("https://elearning.skypec.com.vn/")) {
+                    sendLogToWeb("Đang tự động thực hiện đăng nhập...", "info");
+                    String jsLogin = "javascript:(function() {" +
+                            "   var userField = document.getElementById('username') || document.querySelector('input[type=\"text\"]');" +
+                            "   var passField = document.getElementById('password') || document.querySelector('input[type=\"password\"]');" +
+                            "   var loginBtn = document.querySelector('button[type=\"submit\"]') || document.querySelector('.btn-login');" +
+                            "   if (userField && passField) {" +
+                            "       userField.value = '" + autoUsername + "';" +
+                            "       userField.dispatchEvent(new Event('input', { bubbles: true }));" +
+                            "       passField.value = '" + autoPassword + "';" +
+                            "       passField.dispatchEvent(new Event('input', { bubbles: true }));" +
+                            "       setTimeout(function() {" +
+                            "           if (loginBtn) { " +
+                            "               AndroidAutomation.sendAutomationLog('Đang click nút Đăng nhập...', 'info');" +
+                            "               loginBtn.click(); " +
+                            "           }" +
+                            "       }, 800);" +
+                            "   } else {" +
+                            "       AndroidAutomation.sendAutomationLog('Không tìm thấy ô nhập tài khoản mật khẩu.', 'error');" +
+                            "   }" +
+                            "})()";
+                    automationWebView.evaluateJavascript(jsLogin, null);
+                }
+                
+                // 2. Đăng nhập thành công, chuyển hướng tới trang chi tiết khóa học được chọn
+                else if (url.equals("https://elearning.skypec.com.vn/trang-chu") || url.contains("/bang-tong-hop-ca-nhan")) {
+                    sendLogToWeb("Đăng nhập thành công. Đang chuyển hướng tới trang bài học...", "success");
+                    automationWebView.loadUrl("https://elearning.skypec.com.vn/lop-hoc/chi-tiet/" + autoClassId);
+                }
+
+                // 3. Tại trang chi tiết khóa học, tự động tìm nút "Vào học" hoặc bài học đầu tiên để kích hoạt LRS
+                else if (url.contains("/lop-hoc/chi-tiet/")) {
+                    sendLogToWeb("Đang tìm bài học để kích hoạt thời gian...", "info");
+                    String jsJoin = "javascript:(function() {" +
+                            "   var checkInterval = setInterval(function() {" +
+                            "       var buttons = document.querySelectorAll('button, a, div');" +
+                            "       for (var i = 0; i < buttons.length; i++) {" +
+                            "           var text = buttons[i].innerText || '';" +
+                            "           if (text.includes('Vào học') || text.includes('Đọc sách') || text.includes('Xem tài liệu')) {" +
+                            "               AndroidAutomation.sendAutomationLog('Đã tìm thấy nút học: ' + text + '. Đang mở...', 'success');" +
+                            "               buttons[i].click();" +
+                            "               clearInterval(checkInterval);" +
+                            "               return;" +
+                            "           }" +
+                            "       }" +
+                            "       // Nếu không có nút chữ, tự click phần tử bài học đầu tiên" +
+                            "       var items = document.querySelectorAll('.content-item, .lesson-item, [class*=\"content\"]');" +
+                            "       if (items.length > 0) {" +
+                            "           AndroidAutomation.sendAutomationLog('Đang click mở chương mục bài học đầu tiên...', 'success');" +
+                            "           items[0].click();" +
+                            "           clearInterval(checkInterval);" +
+                            "       }" +
+                            "   }, 1500);" +
+                            "   // Hủy kiểm tra sau 10 giây tránh lặp vô hạn" +
+                            "   setTimeout(function() { clearInterval(checkInterval); }, 10000);" +
+                            "})()";
+                    automationWebView.evaluateJavascript(jsJoin, null);
+                }
+
+                // 4. Khi đã mở sách học tập thành công (URL chứa /hoc-tap/ hoặc /view)
+                else if (url.contains("/hoc-tap/") || url.contains("/view")) {
+                    sendLogToWeb("Đã kích hoạt trình đọc sách của Skypec! Thời gian học bắt đầu được tích lũy.", "success");
+                    
+                    // Khởi chạy bộ giám sát hộp thoại Captcha
+                    String jsMonitor = "javascript:(function() {" +
+                            "   if (window.captchaMonitorInterval) clearInterval(window.captchaMonitorInterval);" +
+                            "   window.captchaMonitorInterval = setInterval(function() {" +
+                            "       var captchaModal = document.querySelector('.modal-captcha, #captcha, [class*=\"captcha\"], iframe[src*=\"recaptcha\"]');" +
+                            "       var isVisible = false;" +
+                            "       if (captchaModal) {" +
+                            "           var rect = captchaModal.getBoundingClientRect();" +
+                            "           isVisible = rect.width > 0 && rect.height > 0;" +
+                            "       }" +
+                            "       if (isVisible) {" +
+                            "           AndroidAutomation.onCaptchaRequired();" +
+                            "       }" +
+                            "   }, 4000);" +
+                            "})()";
+                    automationWebView.evaluateJavascript(jsMonitor, null);
+                }
+            }
+        });
+
+        // Đăng ký các cầu nối giao tiếp JavaScript
+        webView.addJavascriptInterface(new WebAppInterface(), "Android");
+        automationWebView.addJavascriptInterface(new AutomationInterface(), "AndroidAutomation");
+
+        // Load giao diện HTML chính của App
         webView.loadUrl("file:///android_asset/index.html");
     }
 
-    // Cầu nối giao tiếp giữa JavaScript và Java
+    // Giao diện cầu nối cho WebView tự động hóa
+    public class AutomationInterface {
+        @JavascriptInterface
+        public void sendAutomationLog(String message, String type) {
+            sendLogToWeb("[Trình duyệt] " + message, type);
+        }
+
+        @JavascriptInterface
+        public void onCaptchaRequired() {
+            sendLogToWeb("⚠️ PHÁT HIỆN YÊU CẦU XÁC MINH CAPTCHA! Đang hiển thị trình duyệt để Khầy giải...", "error");
+            showAutomationView();
+            
+            // Rung cảnh báo
+            try {
+                android.os.Vibrator v = (android.os.Vibrator) getSystemService(android.content.Context.VIBRATOR_SERVICE);
+                if (v != null) {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        v.vibrate(android.os.VibrationEffect.createOneShot(1000, android.os.VibrationEffect.DEFAULT_AMPLITUDE));
+                    } else {
+                        v.vibrate(1000);
+                    }
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            
+            // Đẩy thông báo khẩn cấp
+            showHighPriorityNotification("Yêu cầu giải Captcha", "Vui lòng mở App và tích chọn xác minh Captcha để duy trì học tập.");
+        }
+    }
+
+    // Cầu nối giao tiếp giữa giao diện chính (JavaScript) và Java
     public class WebAppInterface {
 
-        // Bắt đầu dịch vụ chạy ngầm Foreground Service để gửi tín hiệu nhịp tim đọc sách
+        // Bắt đầu chế độ tự động hóa WebView
+        @JavascriptInterface
+        public void startAutomation(String classId, String username, String password) {
+            autoClassId = classId;
+            autoUsername = username;
+            autoPassword = password;
+            isAutomating = true;
+            
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    sendLogToWeb("Đang khởi động tiến trình giả lập trình duyệt...", "info");
+                    automationWebView.loadUrl("https://elearning.skypec.com.vn/dang-nhap");
+                }
+            });
+        }
+
+        // Dừng chế độ tự động hóa WebView
+        @JavascriptInterface
+        public void stopAutomation() {
+            isAutomating = false;
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    sendLogToWeb("Đang dừng trình duyệt tự động và dọn dẹp bộ nhớ...", "info");
+                    automationWebView.loadUrl("about:blank");
+                    hideAutomationView();
+                }
+            });
+        }
+
+        // Bắt đầu dịch vụ chạy ngầm Foreground Service để giữ CPU hoạt động (WakeLock)
         @JavascriptInterface
         public void startForegroundService(String classTitle, String classUserId, String token, String learningId) {
             Intent serviceIntent = new Intent(MainActivity.this, HeartbeatService.class);
@@ -290,12 +504,43 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     public void onBackPressed() {
-        // Cho phép WebView quay lại trang trước nếu có
-        if (webView.canGoBack()) {
+        // Nếu WebView tự động hóa đang hiện, bấm quay lại sẽ ẩn nó đi thay vì đóng app
+        if (automationWebView != null && automationWebView.getVisibility() == android.view.View.VISIBLE) {
+            hideAutomationView();
+        } else if (webView.canGoBack()) {
             webView.goBack();
         } else {
             super.onBackPressed();
         }
+    }
+
+    // Hiển thị WebView tự động hóa lên trên cùng (dùng khi cần giải Captcha)
+    public void showAutomationView() {
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                if (automationWebView != null && btnHideAutomation != null) {
+                    automationWebView.setVisibility(android.view.View.VISIBLE);
+                    btnHideAutomation.setVisibility(android.view.View.VISIBLE);
+                    automationWebView.bringToFront();
+                    btnHideAutomation.bringToFront();
+                }
+            }
+        });
+    }
+
+    // Ẩn WebView tự động hóa về chế độ chạy nền
+    public void hideAutomationView() {
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                if (automationWebView != null && btnHideAutomation != null) {
+                    automationWebView.setVisibility(android.view.View.INVISIBLE);
+                    btnHideAutomation.setVisibility(android.view.View.GONE);
+                    webView.bringToFront();
+                }
+            }
+        });
     }
 
     // Gửi nhật ký từ tầng Native Java lên giao diện WebView
